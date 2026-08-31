@@ -71,7 +71,7 @@ Using:
 - `@solana-mobile/mobile-wallet-adapter-protocol`
 - `@solana-mobile/mobile-wallet-adapter-protocol-web3js`
 
-Implemented in [app/src/hooks/useWallet.ts](../app/src/hooks/useWallet.ts):
+Implemented in [app/src/hooks/useWallet.ts](../archive/app/src/hooks/useWallet.ts):
 - Authorize + silent reauthorize with app identity
 - Base64 MWA address conversion to `PublicKey`
 - Build transaction **before** wallet session
@@ -81,8 +81,8 @@ Implemented in [app/src/hooks/useWallet.ts](../app/src/hooks/useWallet.ts):
 
 ### Solana/Anchor compatibility in React Native
 Implemented in:
-- [app/App.tsx](../app/App.tsx)
-- [app/metro.config.js](../app/metro.config.js)
+- [app/App.tsx](../archive/app/App.tsx)
+- [app/metro.config.js](../archive/app/metro.config.js)
 
 What we added:
 - Required polyfills (`Buffer`, URL, random values)
@@ -90,7 +90,7 @@ What we added:
 - Safe stubs for non-mobile modules (`fs`, `net`, `tls`, etc.)
 
 ### App-wide wallet actions
-- Central wallet context for connect/disconnect/sign in [app/src/context/WalletContext.tsx](../app/src/context/WalletContext.tsx)
+- Central wallet context for connect/disconnect/sign in [app/src/context/WalletContext.tsx](../archive/app/src/context/WalletContext.tsx)
 - Shared transaction signer used across all loan flows:
   - create loan
   - repay installment
@@ -107,7 +107,7 @@ What we added:
 
 ## How We Utilized Solana Agent Kit
 
-Implemented in [program/scripts/ai-agent.js](../program/scripts/ai-agent.js).
+Implemented in [program/scripts/ai-agent.js](../archive/program/scripts/ai-agent.js).
 
 Using:
 - `solana-agent-kit`
@@ -134,8 +134,8 @@ Using:
 
 ## System Architecture
 
-- **Smart contract:** Anchor program in [program/programs/float/src/lib.rs](../program/programs/float/src/lib.rs)
-- **Mobile app:** React Native + Expo in [app](../app)
+- **Smart contract:** Anchor program in [program/programs/float/src/lib.rs](../archive/program/programs/float/src/lib.rs)
+- **Mobile app:** React Native + Expo in [app](../archive/app)
 - **Wallet integration:** Solana Mobile Wallet Adapter protocol
 - **AI executor:** Node script + Solana Agent Kit
 - **Network:** Solana Devnet
@@ -188,11 +188,11 @@ Detailed setup and demo steps:
 
 ```text
 Float/
-├── program/
+├── archive/program/
 │   ├── programs/float/src/lib.rs         # Anchor program
 │   ├── scripts/ai-agent.js               # Solana Agent Kit powered agent
 │   └── tests/                            # Program tests/scripts
-├── app/
+├── archive/app/
 │   ├── src/hooks/useWallet.ts            # Mobile wallet adapter integration
 │   ├── src/screens/AIPoolDashboardScreen.tsx
 │   ├── src/screens/AgentStatusScreen.tsx

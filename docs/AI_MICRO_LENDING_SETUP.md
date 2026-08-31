@@ -18,7 +18,7 @@ cd program
 anchor build
 # If IDL generation fails at test step, the .so is still in target/deploy/
 anchor deploy --provider.cluster devnet
-# Note the program id; update Anchor.toml and app/src/utils/constants.ts FLOAT_PROGRAM_ID if you deployed a new program.
+# Note the program id; update Anchor.toml and archive/app/src/utils/constants.ts FLOAT_PROGRAM_ID if you deployed a new program.
 ```
 
 ## 2. One-time program setup (Devnet)
@@ -69,7 +69,7 @@ AGENT_KEYPAIR=./agent.json BORROWER=<borrower_pubkey> AMOUNT=10000000 TERM_DAYS=
 
 ## 4.1 AI agent with Solana Agent Kit
 
-Float now includes `program/scripts/ai-agent.js` wired to **Solana Agent Kit** (`solana-agent-kit` + token/misc plugins) for on-chain signal checks before executing `agent_match_loan`.
+Float now includes `archive/program/scripts/ai-agent.js` wired to **Solana Agent Kit** (`solana-agent-kit` + token/misc plugins) for on-chain signal checks before executing `agent_match_loan`.
 
 Install dependencies:
 

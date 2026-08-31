@@ -1,6 +1,29 @@
 # Float
 
-Solana mobile lending app: Expo app in `app/`, Anchor program in `program/`, docs in `docs/`. See README.md for architecture and instruction lists.
+On-chain short-term working-capital credit for businesses with delayed inbound payments —
+a customer invoice not yet settled, a cross-border investor payment in flight, a temporary
+banking block — while payroll and vendors still come due. A verified business applies with
+evidence of its incoming funds; Float underwrites and disburses USDC; the loan, schedule and
+repayment status are recorded on Solana; repayment builds a portable credit history.
+
+Read README.md before anything else.
+
+## Ground rules for this repo
+
+**`archive/` is dead code.** It holds the March 2026 hackathon build — a *consumer mobile*
+crypto lending app. It is not the product, not maintained, and must not be built on,
+upgraded, or copied from beyond the Anchor account patterns noted in
+[archive/README.md](archive/README.md). If a task seems to call for editing anything under
+`archive/`, stop and ask — the answer is almost always that new code belongs elsewhere.
+
+**Documents disagree with each other on purpose.** Several docs in `docs/` describe products
+Float abandoned. Every superseded file carries a `<!-- float-status-banner -->` block at the
+top saying what is dead and what is still live. Read that banner before trusting a document's
+contents, and add one to any doc that gets superseded in future.
+
+**No product surface exists yet** for the current direction. `website/` is a coming-soon
+splash page and its own separate git repository — it is live, so do not modify it as part of
+unrelated work.
 
 ## Design System
 Always read DESIGN.md before making any visual or UI decisions.

@@ -74,8 +74,7 @@ not as a statement of product intent.
 
 | Path | What it is | Status |
 |---|---|---|
-| `program/` | Anchor program, ~1,300 lines, Solana devnet | **Prototype.** Installment, treasury and PDA patterns carry over. The 150% LTV rule, the $100 / 7-day / 110% micro-loan caps, and every USDC-against-USDC flow do not. |
-| `app/` | Expo / React Native mobile app with Mobile Wallet Adapter | **Not the v1 surface.** Business borrowers work at a desktop, beside their accounting software and bank portal. |
+| `archive/` | The hackathon build: Anchor program + Expo mobile app | **Dead.** Kept only as an Anchor reference. Read [archive/README.md](archive/README.md) before touching anything in it. |
 | `website/` | Coming-soon splash page | Live placeholder. Tracked as its own git repository. |
 | `promo/` | Remotion source for the 10s brand trailer | Current. |
 | `docs/` | Strategy, research and brand | Mixed — see the status banner at the top of each file. |
