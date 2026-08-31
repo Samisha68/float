@@ -50,3 +50,7 @@ coverage/
 # Optional: lockfile preference — uncomment if you want to ignore one
 # package-lock.json
 # yarn.lock
+.gstack/
+
+# Rendered promo output (regenerable via `yarn render`)
+promo/out/

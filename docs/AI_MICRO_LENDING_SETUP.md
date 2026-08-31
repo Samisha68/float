@@ -1,5 +1,12 @@
 # AI-Agent Managed Micro-Lending — Setup & Demo (MONOLITH Hackathon)
 
+<!-- float-status-banner -->
+> **ARCHIVED — August 31, 2026.** Setup and demo steps for the hackathon prototype's AI
+> micro-lending flow. Operationally accurate for that build; not current product. See
+> [PROTOTYPE.md](PROTOTYPE.md) and the root [README.md](../README.md).
+
+---
+
 ## Overview
 
 Float adds **AI-Agent Managed Micro-Lending**: a liquidity pool where lenders deposit USDC and an (MVP) rule-based agent matches micro-loans ($1–$100, 1–7 days) with 110% mini-collateral. Caps: $100/loan, 10% of pool per loan.
@@ -11,7 +18,7 @@ cd program
 anchor build
 # If IDL generation fails at test step, the .so is still in target/deploy/
 anchor deploy --provider.cluster devnet
-# Note the program id; update Anchor.toml and app/src/utils/constants.ts FLOAT_PROGRAM_ID if you deployed a new program.
+# Note the program id; update Anchor.toml and archive/app/src/utils/constants.ts FLOAT_PROGRAM_ID if you deployed a new program.
 ```
 
 ## 2. One-time program setup (Devnet)
@@ -62,7 +69,7 @@ AGENT_KEYPAIR=./agent.json BORROWER=<borrower_pubkey> AMOUNT=10000000 TERM_DAYS=
 
 ## 4.1 AI agent with Solana Agent Kit
 
-Float now includes `program/scripts/ai-agent.js` wired to **Solana Agent Kit** (`solana-agent-kit` + token/misc plugins) for on-chain signal checks before executing `agent_match_loan`.
+Float now includes `archive/program/scripts/ai-agent.js` wired to **Solana Agent Kit** (`solana-agent-kit` + token/misc plugins) for on-chain signal checks before executing `agent_match_loan`.
 
 Install dependencies:
 

@@ -1,5 +1,11 @@
 # Float — Final Shipping Checklist (MONOLITH Hackathon)
 
+<!-- float-status-banner -->
+> **ARCHIVED — August 31, 2026.** Submission checklist for the MONOLITH hackathon
+> (deadline March 9, 2026). Historical record only. See the root [README.md](README.md).
+
+---
+
 **Deadline: March 9, 2026** | Execute in order. No new features.
 
 ---
@@ -17,7 +23,7 @@
 | App: Home, AI Pool, Deposit, Prefs, Status, RepayMicro | ✅ Done | |
 | Setup script (setup-agent.js) | ✅ Done | Raw tx, no IDL |
 | Agent-match script (agent-match.js) | ✅ Done | Raw tx, no IDL |
-| USDC mint | ✅ Fixed | Now Circle devnet 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU |
+| USDC mint | ❌ **NOT fixed — this row was wrong** | Code still uses `7whbViYZ…`; see §1.2 |
 | Test USDC | ❌ Needed | Faucet |
 | Demo keypair → Phantom | ❌ Needed | |
 | Demo video | ❌ Needed | |
@@ -53,9 +59,20 @@ solana program deploy target/deploy/float.so --program-id target/deploy/float-ke
 
 ---
 
-## 1.2 USDC Mint (Already Updated)
+## 1.2 USDC Mint — ⚠️ this section was false
 
-Constants + scripts now use Circle devnet USDC: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`
+**Corrected August 31, 2026.** This section claimed the constants and scripts had been
+updated to Circle's devnet USDC. They were not. Verified against the code on that date:
+
+- `archive/app/src/utils/constants.ts` and all three scripts in `archive/program/scripts/`
+  still default to `7whbViYZqoGxZ7B32crtGEcyCJEDZNPrqSQxm9LUUtGX`.
+- That constant is additionally *labelled* "Circle's official devnet USDC" in the source,
+  which it is not.
+- Circle's devnet USDC is `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`.
+
+The change was either never made or was reverted, and this checklist was never corrected.
+Left unfixed deliberately — the code is archived and will not be run again. Recorded here so
+nobody trusts the original claim.
 
 ---
 

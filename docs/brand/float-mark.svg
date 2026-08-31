@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 18 130 74" role="img" aria-label="Float">
+  <!-- Float · The Ascending Arcade.
+       Three Roman bays, each opening taller than the last, cornice over each level.
+       No base by design. Uses currentColor: set `color` on the parent to recolor. -->
+  <g fill="currentColor">
+    <path fill-rule="evenodd" d="
+      M8,88 V56 H54 V42 H90 V28 H126 V88 Z
+      M18,88 V77 A13,13 0 0 1 44,77 V88 Z
+      M54,88 V63 A13,13 0 0 1 80,63 V88 Z
+      M90,88 V49 A13,13 0 0 1 116,49 V88 Z"/>
+    <rect x="4"  y="50" width="54" height="7"/>
+    <rect x="50" y="36" width="44" height="7"/>
+    <rect x="86" y="22" width="44" height="7"/>
+  </g>
+</svg>
