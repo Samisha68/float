@@ -179,12 +179,16 @@ Deploy signature `2HERcMPeRFhJkPS5ZVWMKsAZuumjFar3NSkgoRREKQfLT7iV61wMWfknd61NbP
 upgrading needs `solana program extend` plus a ~2.3 SOL buffer. Balance after deploy is
 **1.15 SOL** and the devnet airdrop is rate-limited (both 2 SOL and 1 SOL refused).
 
-Not a blocker — the discriminators match, so the IDL drives the deployed binary correctly.
-But do this before the demo, tomorrow, when the cooldown resets:
+**Escalated 1 Sept: now a blocker, not housekeeping.** The QA fixes changed
+`approve_and_disburse` from 9 accounts to 11, so the regenerated IDL no longer matches the
+binary on devnet. B6 (`OnChainLedger`) cannot work against the deployed program until it is
+replaced. The new `.so` is 348,512 bytes.
+
+Do this first thing tomorrow, when the airdrop cooldown resets:
 
 ```bash
 solana airdrop 2 --url devnet     # or https://faucet.solana.com if refused
-solana program extend 6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8 20000 --url devnet
+solana program extend 6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8 40000 --url devnet
 solana program deploy target/deploy/float.so \
   --program-id target/deploy/float-keypair.json --url devnet
 ```
@@ -335,7 +339,8 @@ which most demos do not. Findings:
 
 ### Engineering
 
-**ENG-1 · P1 · Ceiling inconsistency will strand an advance on stage.**
+**ENG-1 · P1 · FIXED 1 Sept (commit `6dab6f9`).** Reproduced by a failing test, then
+fixed. The ceiling inconsistency would have stranded an advance on stage.
 `request_advance` accepts up to `MAX_ADVANCE_ABSOLUTE` ($25,000)
 ([lib.rs:114](program/programs/float/src/lib.rs:114)) but `approve_and_disburse`
 unconditionally rejects anything over `MAX_ADVANCE_TIER_1` ($5,000)
@@ -344,17 +349,26 @@ $25,000 is accepted, then can never be approved — it sits in "Awaiting review"
 with no explanation.
 
 Live-demo failure mode: someone types 10000, you approve, the transaction reverts with
-`ExceedsTier1Ceiling`, and you are debugging in front of judges. Fix all three layers in
-A6: `max={POLICY.MAX_ADVANCE_TIER_1}` on the input, a pre-submit check in `onchain.ts`, and
-either move the tier-1 check into `request_advance` or make the absolute ceiling reachable.
+`ExceedsTier1Ceiling`, and you are debugging in front of judges.
 
-**ENG-2 · P2 · Overdue is permanent even after repayment.** `repay_advance` increments
+**Fixed on-chain:** `request_advance` now enforces the tier-1 ceiling too, so the borrower
+is refused immediately and no stranded advance is written. Still to do in the UI (A6):
+`max={POLICY.MAX_ADVANCE_TIER_1}` on the amount input and a pre-submit check in
+`onchain.ts`, so the borrower reads a sentence instead of a reverted transaction.
+
+**ENG-2 · P2 · Confirmed by test 1 Sept; kept as policy. The open item is copy, not code.**
+Overdue is permanent even after repayment. `repay_advance` increments
 `advances_repaid` but never decrements `advances_overdue`
 ([lib.rs:250](program/programs/float/src/lib.rs:250)), so a late-but-settled advance counts
 against the business forever. `was_late` is emitted in the event but never recorded on
 `BusinessProfile`. Defensible as a policy — the record should not be erasable — but decide
 it deliberately, because a judge who reads the code will ask whether it is intent or a bug.
-Cheapest correct fix: keep the counter, add `advances_repaid_late`.
+
+**Decided: keep it.** The record should not be erasable, which is the same principle that
+makes `mark_overdue` permissionless. `tests/overdue.ts` now documents it as intentional.
+What that leaves open is wording: the credit-record screen must read *"1 repaid, 1
+previously past due"*. Anything reading "1 overdue" implies money is still outstanding
+when it is not.
 
 **ENG-3 · P2 · Toolchain mismatch is the root cause.** `Anchor.toml` pins 0.30.1,
 `Cargo.toml` pins `anchor-lang 0.30.1`, the installed CLI is 0.31.1, rustc is 1.95. That
@@ -362,10 +376,11 @@ combination is what breaks the IDL. The `proc-macro2` pin in §2 is a patch; ali
 0.31.1 is the real fix. **Do not attempt the real fix before Borneo** — it is a two-hour
 job that can become six, and you cannot afford six.
 
-**ENG-4 · P3 · No tests.** `program/tests/` does not exist and `Anchor.toml` points its
-test script at files that are not there. Correct to skip before the conference; note it
-before anyone asks. The backup video is standing in for a test suite, which is a trade you
-are making knowingly.
+**ENG-4 · P3 · FIXED 1 Sept — 24 tests, all 7 instructions.** `program/tests/` was empty
+and `Anchor.toml` pointed its test script at files that did not exist. Now `tests/float.ts`
+(21 tests, local validator) and `tests/overdue.ts` (3 tests, bankrun for clock control,
+covering the "Past due" screen). Full report at
+`.gstack/qa-reports/qa-report-float-program-2026-09-01.md`.
 
 **Architecture** — the seam is right, and it is why the D2 override is survivable:
 
@@ -392,11 +407,14 @@ developer-facing surface to review.
 | ~~B4~~ | A1 | P1 | **DONE** — via Anchor 0.31.1 alignment; IDL in `web/src/idl/` |
 | ~~B5~~ | A2 | P1 | **DONE** — live on devnet, verified |
 | B6 | A3 | P1 | `web/src/lib/onchain.ts` implementing `Ledger`; wallet connect (deps already restored) |
-| B5b | A2b | P1 | Get devnet SOL, `program extend`, redeploy the 0.31.1 binary |
+| B5b | A2b | **P1 blocker** | Get devnet SOL, `program extend`, redeploy — B6 is stuck until this lands |
 | B7 | A4 | P1 | `initialize_treasury`, `set_underwriter`, fund with Circle devnet USDC |
 | B8 | A5 | P1 | Full devnet loop end to end |
 | B9 | A5 | P1 | Seed two settled advances (DESIGN-2) |
-| B10 | A6 | P1 | ENG-1 ceiling fix, all three layers |
+| ~~B10a~~ | A6 | P1 | **DONE** — ENG-1 fixed on-chain, reproduced then fixed |
+| B10b | A6 | P2 | ENG-1 UI half: `max` on the amount input + pre-submit check |
+| B10c | A6 | P2 | OBS-001: credit record must read "previously past due", not "overdue" |
+| B10d | A6 | P2 | Underwriting screen should check treasury balance before enabling Approve |
 | B11 | A7 | P1 | **Record the backup video** |
 | B12 | A7 | P1 | Verify demo-ledger toggle with wifi physically off |
 | B13 | A8 | P1 | One-slide for Roast R1 |
@@ -471,8 +489,8 @@ the applications you rejected, the loss curves.
    demo ledger with the deploy plus one manually-run explorer link, and spend Friday on the
    deck.** Decide that in advance, not at midnight on Thursday.
 2. **Reviewed by one model.** No codex, no subagents, no independent pass. The Rust holds
-   funds and has had exactly one reviewer. `/review program/programs/float/src/lib.rs` is
-   worth an hour on Wednesday.
+   funds and has had exactly one reviewer, though it now has 24 tests behind it, which is
+   a different and better kind of assurance. `/review` is still worth an hour on Wednesday.
 3. **The listing mismatch (D5) is unresolved** and judges read the directory.
 4. **Ten users in two hours in a city you have never been to** is optimistic. Line up
    introductions through mypengu and F&B Deals on Day 2, not Day 3.
