@@ -1,5 +1,12 @@
 # AI-Agent Managed Micro-Lending — Setup & Demo (MONOLITH Hackathon)
 
+<!-- float-status-banner -->
+> **ARCHIVED — August 31, 2026.** Setup and demo steps for the hackathon prototype's AI
+> micro-lending flow. Operationally accurate for that build; not current product. See
+> [PROTOTYPE.md](PROTOTYPE.md) and the root [README.md](../README.md).
+
+---
+
 ## Overview
 
 Float adds **AI-Agent Managed Micro-Lending**: a liquidity pool where lenders deposit USDC and an (MVP) rule-based agent matches micro-loans ($1–$100, 1–7 days) with 110% mini-collateral. Caps: $100/loan, 10% of pool per loan.

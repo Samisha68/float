@@ -1,5 +1,11 @@
 # Float — Final Shipping Checklist (MONOLITH Hackathon)
 
+<!-- float-status-banner -->
+> **ARCHIVED — August 31, 2026.** Submission checklist for the MONOLITH hackathon
+> (deadline March 9, 2026). Historical record only. See the root [README.md](README.md).
+
+---
+
 **Deadline: March 9, 2026** | Execute in order. No new features.
 
 ---
