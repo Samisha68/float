@@ -209,6 +209,11 @@ export type Float = {
         },
         {
           "name": "borrowerUsdc",
+          "docs": [
+            "Created on demand. A business borrowing for the first time has never",
+            "held USDC, so without this the underwriter cannot pay it at all. The",
+            "address is a PDA of mint and borrower, so there is nothing to spoof."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -303,6 +308,14 @@ export type Float = {
         {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [

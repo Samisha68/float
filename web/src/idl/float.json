@@ -203,6 +203,11 @@
         },
         {
           "name": "borrower_usdc",
+          "docs": [
+            "Created on demand. A business borrowing for the first time has never",
+            "held USDC, so without this the underwriter cannot pay it at all. The",
+            "address is a PDA of mint and borrower, so there is nothing to spoof."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -297,6 +302,14 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
