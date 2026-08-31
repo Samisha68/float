@@ -52,11 +52,5 @@ coverage/
 # yarn.lock
 .gstack/
 
-# Nested framework / tooling output (website)
-.next/
-.wrangler/
-.vinext/
-.openai/
-
 # Rendered promo output (regenerable via `yarn render`)
 promo/out/

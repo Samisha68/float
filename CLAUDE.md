@@ -21,9 +21,9 @@ Float abandoned. Every superseded file carries a `<!-- float-status-banner -->` 
 top saying what is dead and what is still live. Read that banner before trusting a document's
 contents, and add one to any doc that gets superseded in future.
 
-**No product surface exists yet** for the current direction. `website/` is a coming-soon
-splash page and its own separate git repository — it is live, so do not modify it as part of
-unrelated work.
+**No product surface exists yet** for the current direction. The live coming-soon splash page
+is a *different project* in a *different repo* — `~/Projects/Float_website`, deployed by
+Vercel. It is not in this repo and must not be edited from here as part of unrelated work.
 
 ## Design System
 Always read DESIGN.md before making any visual or UI decisions.

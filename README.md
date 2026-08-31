@@ -75,7 +75,7 @@ not as a statement of product intent.
 | Path | What it is | Status |
 |---|---|---|
 | `archive/` | The hackathon build: Anchor program + Expo mobile app | **Dead.** Kept only as an Anchor reference. Read [archive/README.md](archive/README.md) before touching anything in it. |
-| `website/` | Coming-soon splash page | Live placeholder. Tracked as its own git repository. |
+| — | Coming-soon splash page | Lives in a **separate repo**, `~/Projects/Float_website` ([Samisha68/Float_website](https://github.com/Samisha68/Float_website)), deployed by Vercel. Not part of this repo. |
 | `promo/` | Remotion source for the 10s brand trailer | Current. |
 | `docs/` | Strategy, research and brand | Mixed — see the status banner at the top of each file. |
 | `DESIGN.md` | Visual system: the Ascending Arcade mark, four-value palette, type | **Authoritative.** Not yet implemented anywhere in code. |
