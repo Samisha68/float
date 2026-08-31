@@ -8,6 +8,9 @@ skip-lint = false
 [programs.devnet]
 float = "6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8"
 
+[programs.localnet]
+float = "6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8"
+
 [registry]
 url = "https://api.apr.dev"
 
