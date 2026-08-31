@@ -220,46 +220,41 @@ describe("float", () => {
     );
   });
 
-  // ── ISSUE-001: the tier-1 / absolute ceiling gap ────────────
+  // ── ISSUE-001 regression ────────────────────────────────────
+  // Regression: ISSUE-001 — request_advance accepted up to $25,000 while
+  // approve_and_disburse capped at $5,000, so anything in between was
+  // accepted and then stranded in Requested with no way forward and no way
+  // to cancel. Found by /qa on 2026-09-01.
+  // Report: .gstack/qa-reports/qa-report-float-program-2026-09-01.md
 
-  it("ISSUE-001: an advance between $5k and $25k is accepted then can never be approved", async () => {
-    const nonce = 50;
-    // Accepted by request_advance — MAX_ADVANCE_ABSOLUTE is $25,000.
-    await program.methods
-      .requestAdvance(new BN(nonce), dollars(10_000), dollars(20_000), 30, Array(32).fill(1))
-      .accounts({ authority: borrower.publicKey, business: businessPda })
-      .signers([borrower])
-      .rpc();
-
-    const adv = advancePda(businessPda, nonce);
-    let a = await program.account.advance.fetch(adv);
-    assert.deepEqual(a.status, { requested: {} }, "sits in Requested");
-
-    // But approve_and_disburse caps unconditionally at MAX_ADVANCE_TIER_1 ($5,000).
+  it("ISSUE-001: an advance above the tier-1 ceiling is rejected at request time", async () => {
     borrowerUsdc = getAssociatedTokenAddressSync(usdcMint, borrower.publicKey);
     await createAssociatedTokenAccount(conn, borrower, usdcMint, borrower.publicKey);
 
+    // $10,000 sits between the tier-1 ($5,000) and absolute ($25,000)
+    // ceilings. It must be refused now, not after an underwriter review.
     await expectError(
       program.methods
-        .approveAndDisburse(250)
-        .accounts({
-          underwriter: underwriter.publicKey,
-          treasury: treasuryPda,
-          business: businessPda,
-          advance: adv,
-          usdcMint,
-          treasuryUsdc,
-          borrowerUsdc,
-          borrower: borrower.publicKey,
-        })
-        .signers([underwriter])
+        .requestAdvance(new BN(50), dollars(10_000), dollars(20_000), 30, Array(32).fill(1))
+        .accounts({ authority: borrower.publicKey, business: businessPda })
+        .signers([borrower])
         .rpc(),
       "ExceedsTier1Ceiling"
     );
 
-    // Stranded: still Requested, no way forward and no way to cancel.
-    a = await program.account.advance.fetch(adv);
-    assert.deepEqual(a.status, { requested: {} }, "permanently stuck in Requested");
+    // Nothing was written, so there is no stranded advance to clean up.
+    const adv = advancePda(businessPda, 50);
+    assert.isNull(await conn.getAccountInfo(adv), "no advance account created");
+  });
+
+  it("ISSUE-001: exactly the tier-1 ceiling is still allowed", async () => {
+    await program.methods
+      .requestAdvance(new BN(51), dollars(5_000), dollars(9_000), 30, Array(32).fill(1))
+      .accounts({ authority: borrower.publicKey, business: businessPda })
+      .signers([borrower])
+      .rpc();
+    const a = await program.account.advance.fetch(advancePda(businessPda, 51));
+    assert.equal(a.amount.toNumber(), 5_000 * USDC, "boundary value accepted");
   });
 
   // ── ISSUE-002 regression ────────────────────────────────────

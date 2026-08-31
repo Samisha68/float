@@ -27,6 +27,9 @@ const USDC_DECIMALS: u64 = 1_000_000;
 const MAX_ADVANCE_TIER_1: u64 = 5_000 * USDC_DECIMALS;
 
 /// Absolute ceiling for the MVP, pledge or not. $25,000.
+/// Not reachable today: request_advance and approve_and_disburse both cap at
+/// MAX_ADVANCE_TIER_1, because nothing on-chain records a pledge yet. This
+/// bound exists so the larger ceiling is already enforced when pledges land.
 const MAX_ADVANCE_ABSOLUTE: u64 = 25_000 * USDC_DECIMALS;
 
 /// Advances are short-dated by design.
@@ -112,6 +115,12 @@ pub mod float {
     ) -> Result<()> {
         require!(amount > 0, FloatError::InvalidAmount);
         require!(amount <= MAX_ADVANCE_ABSOLUTE, FloatError::ExceedsAbsoluteCeiling);
+        // Fail here, not at approval. approve_and_disburse enforces the same
+        // tier-1 ceiling, so without this check a request between the two
+        // ceilings is accepted and then strands in Requested forever: the
+        // underwriter cannot approve it and nothing can cancel it. The
+        // borrower must learn the limit when they ask, not days later.
+        require!(amount <= MAX_ADVANCE_TIER_1, FloatError::ExceedsTier1Ceiling);
         require!(
             term_days >= MIN_TERM_DAYS && term_days <= MAX_TERM_DAYS,
             FloatError::InvalidTerm
