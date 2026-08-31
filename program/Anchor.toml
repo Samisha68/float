@@ -6,10 +6,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-float = "F1oatAdvance11111111111111111111111111111111"
+float = "6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8"
+
+[registry]
+url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

@@ -14,7 +14,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("F1oatAdvance11111111111111111111111111111111");
+declare_id!("6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8");
 
 // ─────────────────────────────────────────────────────────────
 // Policy — hard bounds the underwriter cannot exceed
