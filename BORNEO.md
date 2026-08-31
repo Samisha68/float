@@ -388,7 +388,7 @@ developer-facing surface to review.
 |---|---|---|---|
 | ~~B1~~ | A0 | P1 | **DONE** — deps reinstalled, `npm run dev` serves 200 |
 | ~~B2~~ | A0 | P1 | **DONE** — `config.ts` de-Buffered, `npm run build` clean |
-| B3 | A0 | P2 | `git push` — four unpushed commits |
+| ~~B3~~ | A0 | P2 | **DONE** — branch pushed, in sync with origin |
 | ~~B4~~ | A1 | P1 | **DONE** — via Anchor 0.31.1 alignment; IDL in `web/src/idl/` |
 | ~~B5~~ | A2 | P1 | **DONE** — live on devnet, verified |
 | B6 | A3 | P1 | `web/src/lib/onchain.ts` implementing `Ledger`; wallet connect (deps already restored) |
