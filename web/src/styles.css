@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* ── Float design system — DESIGN.md is the source of truth ──────────────
+   Four values. No fifth colour. Lighter and darker steps are opacities of
+   the same grey, never new hues. There is deliberately no red/amber/green:
+   advance status is carried by words, weight and position instead.        */
+
+@theme {
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-navy: #031329;
+  --color-grey: #8a94a6;
+
+  /* Permitted derivations: opacities of grey only. */
+  --color-border: rgba(138, 148, 166, 0.25);
+  --color-divider: rgba(138, 148, 166, 0.15);
+  --color-surface: rgba(138, 148, 166, 0.06);
+
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* 4px base unit: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-white);
+  color: var(--color-navy);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Money and dates use tabular figures everywhere. */
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+.display { letter-spacing: -0.035em; font-weight: 600; }
+
+/* Motion: things settle and level. Ease-out, 150–350ms. No bounce. */
+@keyframes settle {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.settle { animation: settle 220ms ease-out both; }
