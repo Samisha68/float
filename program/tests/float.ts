@@ -262,9 +262,13 @@ describe("float", () => {
     assert.deepEqual(a.status, { requested: {} }, "permanently stuck in Requested");
   });
 
-  // ── ISSUE-002: borrower with no USDC account ────────────────
+  // ── ISSUE-002 regression ────────────────────────────────────
+  // Regression: ISSUE-002 — a first-time borrower has no USDC account, and
+  // ApproveAndDisburse had no init_if_needed, so the underwriter could not
+  // pay them at all. Found by /qa on 2026-09-01.
+  // Report: .gstack/qa-reports/qa-report-float-program-2026-09-01.md
 
-  it("ISSUE-002: approve fails if the borrower has no USDC token account", async () => {
+  it("ISSUE-002: approve creates the USDC account for a first-time borrower", async () => {
     const fresh = Keypair.generate();
     await fund(fresh, 2);
     const [freshBiz] = PublicKey.findProgramAddressSync(
@@ -282,29 +286,29 @@ describe("float", () => {
       .signers([fresh])
       .rpc();
 
-    // The borrower has never held USDC, so the ATA does not exist. The account
-    // struct has no init_if_needed, so the underwriter simply cannot approve.
+    // Precondition: the borrower has never held USDC, so the ATA does not exist.
     const freshAta = getAssociatedTokenAddressSync(usdcMint, fresh.publicKey);
-    const info = await conn.getAccountInfo(freshAta);
-    assert.isNull(info, "precondition: borrower ATA does not exist");
+    assert.isNull(await conn.getAccountInfo(freshAta), "precondition: no borrower ATA");
 
-    await expectError(
-      program.methods
-        .approveAndDisburse(250)
-        .accounts({
-          underwriter: underwriter.publicKey,
-          treasury: treasuryPda,
-          business: freshBiz,
-          advance: advancePda(freshBiz, 1),
-          usdcMint,
-          treasuryUsdc,
-          borrowerUsdc: freshAta,
-          borrower: fresh.publicKey,
-        })
-        .signers([underwriter])
-        .rpc(),
-      "AccountNotInitialized"
-    );
+    await program.methods
+      .approveAndDisburse(250)
+      .accounts({
+        underwriter: underwriter.publicKey,
+        treasury: treasuryPda,
+        business: freshBiz,
+        advance: advancePda(freshBiz, 1),
+        usdcMint,
+        treasuryUsdc,
+        borrowerUsdc: freshAta,
+        borrower: fresh.publicKey,
+      })
+      .signers([underwriter])
+      .rpc();
+
+    // The account now exists and holds the principal.
+    const acct = await getAccount(conn, freshAta);
+    assert.equal(Number(acct.amount), 1000 * USDC, "first-time borrower was paid");
+    assert.equal(acct.owner.toBase58(), fresh.publicKey.toBase58());
   });
 
   // ── Happy path ──────────────────────────────────────────────
@@ -322,6 +326,8 @@ describe("float", () => {
 
     const adv = advancePda(businessPda, nonce);
     const before = Number((await getAccount(conn, borrowerUsdc)).amount);
+    // Treasury counters are shared across tests, so assert deltas not absolutes.
+    const tBefore = await program.account.treasury.fetch(treasuryPda);
 
     await program.methods
       .approveAndDisburse(feeBps)
@@ -348,8 +354,16 @@ describe("float", () => {
     assert.equal(a.dueAt.toNumber() - a.disbursedAt.toNumber(), 30 * 86_400, "30 day term");
 
     let t = await program.account.treasury.fetch(treasuryPda);
-    assert.equal(t.advancesFunded.toNumber(), 1);
-    assert.equal(t.principalOutstanding.toNumber(), amount * USDC);
+    assert.equal(
+      t.advancesFunded.toNumber() - tBefore.advancesFunded.toNumber(),
+      1,
+      "one more advance funded"
+    );
+    assert.equal(
+      t.principalOutstanding.toNumber() - tBefore.principalOutstanding.toNumber(),
+      amount * USDC,
+      "outstanding principal rose by the advance"
+    );
 
     // The borrower needs the fee on top of the principal to repay.
     await mintTo(conn, operator, usdcMint, borrowerUsdc, operator, expectedFee * USDC);
@@ -377,7 +391,11 @@ describe("float", () => {
     assert.equal(b.totalVolumeRepaid.toNumber(), amount * USDC, "credit record updated");
 
     t = await program.account.treasury.fetch(treasuryPda);
-    assert.equal(t.principalOutstanding.toNumber(), 0, "outstanding back to zero");
+    assert.equal(
+      t.principalOutstanding.toNumber(),
+      tBefore.principalOutstanding.toNumber(),
+      "outstanding principal back where it started"
+    );
   });
 
   // ── Post-repayment and authorisation ────────────────────────

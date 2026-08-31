@@ -392,8 +392,12 @@ pub struct ApproveAndDisburse<'info> {
     pub usdc_mint: Account<'info, Mint>,
     #[account(mut, associated_token::mint = usdc_mint, associated_token::authority = treasury)]
     pub treasury_usdc: Account<'info, TokenAccount>,
+    /// Created on demand. A business borrowing for the first time has never
+    /// held USDC, so without this the underwriter cannot pay it at all. The
+    /// address is a PDA of mint and borrower, so there is nothing to spoof.
     #[account(
-        mut,
+        init_if_needed,
+        payer = underwriter,
         associated_token::mint = usdc_mint,
         associated_token::authority = borrower
     )]
@@ -402,6 +406,8 @@ pub struct ApproveAndDisburse<'info> {
     #[account(address = advance.borrower @ FloatError::Unauthorized)]
     pub borrower: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
