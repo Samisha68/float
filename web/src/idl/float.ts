@@ -328,7 +328,7 @@ export type Float = {
     {
       "name": "initializeTreasury",
       "docs": [
-        "Stand up the treasury that funds advances. Called once by the operator."
+        "Stand up the treasury once, authenticated by the program upgrade authority."
       ],
       "discriminator": [
         124,
@@ -345,6 +345,87 @@ export type Float = {
           "name": "operator",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "programData",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  79,
+                  219,
+                  185,
+                  120,
+                  32,
+                  237,
+                  62,
+                  58,
+                  245,
+                  231,
+                  105,
+                  187,
+                  192,
+                  174,
+                  200,
+                  228,
+                  125,
+                  58,
+                  245,
+                  180,
+                  239,
+                  131,
+                  210,
+                  230,
+                  193,
+                  191,
+                  164,
+                  141,
+                  113,
+                  149,
+                  80,
+                  171
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                2,
+                168,
+                246,
+                145,
+                78,
+                136,
+                161,
+                176,
+                226,
+                16,
+                21,
+                62,
+                247,
+                99,
+                174,
+                43,
+                0,
+                194,
+                185,
+                61,
+                22,
+                193,
+                36,
+                210,
+                192,
+                83,
+                122,
+                16,
+                4,
+                128,
+                0,
+                0
+              ]
+            }
+          }
         },
         {
           "name": "treasury",

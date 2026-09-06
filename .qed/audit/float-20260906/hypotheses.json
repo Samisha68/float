@@ -1,0 +1,236 @@
+{
+  "generated_at_unix": 1788665157,
+  "hypotheses": [
+    {
+      "assurance": "checking",
+      "backend": "checking once the bound expression is spec-representable (confirmed, not executable until then)",
+      "claim": "`approve_and_disburse` bounds `fee_bps` (<= MAX_FEE_BPS) and rejects with `FeeTooHigh`.",
+      "class": "arithmetic_bound",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "detail": "body enforces `fee_bps <= MAX_FEE_BPS` via require! — a held invariant lifted into a question",
+          "kind": "bound_check_in_body",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "approve_and_disburse",
+      "id": "h-88bec57f-arithmetic_bound-approve_and_disburse",
+      "payoff": "confirming makes the input bound an executable precondition — out-of-domain inputs become a checkable rejection in every backend"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking once the bound expression is spec-representable (confirmed, not executable until then)",
+      "claim": "`request_advance` bounds `amount` (<= MAX_ADVANCE_ABSOLUTE) and rejects with `ExceedsAbsoluteCeiling`.",
+      "class": "arithmetic_bound",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "detail": "body enforces `amount <= MAX_ADVANCE_ABSOLUTE` via require! — a held invariant lifted into a question",
+          "kind": "bound_check_in_body",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "request_advance",
+      "id": "h-481dece0-arithmetic_bound-request_advance",
+      "payoff": "confirming makes the input bound an executable precondition — out-of-domain inputs become a checkable rejection in every backend"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "claim": "`register_business` requires the caller to be the stored authority (signer: authority).",
+      "class": "authorization",
+      "confidence": "high",
+      "evidence": [
+        {
+          "detail": "`authority` is the instruction's only declared signer",
+          "kind": "idl_signer_flag",
+          "source": "src/lib.rs"
+        },
+        {
+          "detail": "handler body compares a signer key against a stored authority field",
+          "kind": "authority_comparison",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "register_business",
+      "id": "h-9401e422-authorization-register_business",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      },
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "claim": "`repay_advance` requires the caller to be the stored authority (signer: authority).",
+      "class": "authorization",
+      "confidence": "high",
+      "evidence": [
+        {
+          "detail": "`authority` is the instruction's only declared signer",
+          "kind": "idl_signer_flag",
+          "source": "src/lib.rs"
+        },
+        {
+          "detail": "handler body compares a signer key against a stored authority field",
+          "kind": "authority_comparison",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "repay_advance",
+      "id": "h-0a5dffdd-authorization-repay_advance",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      },
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "claim": "`request_advance` requires the caller to be the stored authority (signer: authority).",
+      "class": "authorization",
+      "confidence": "high",
+      "evidence": [
+        {
+          "detail": "`authority` is the instruction's only declared signer",
+          "kind": "idl_signer_flag",
+          "source": "src/lib.rs"
+        },
+        {
+          "detail": "handler body compares a signer key against a stored authority field",
+          "kind": "authority_comparison",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "request_advance",
+      "id": "h-aba1a6c3-authorization-request_advance",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      },
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; implementation level requires a runtime/source-bound harness",
+      "claim": "`approve_and_disburse` moves tokens from `treasury_usdc` to `borrower_usdc` via SPL Token (authority `treasury`).",
+      "class": "cpi_integrity",
+      "confidence": "high",
+      "evidence": [
+        {
+          "detail": "`Transfer { from: treasury_usdc, to: borrower_usdc, authority: treasury }` struct literal resolves the account roles",
+          "kind": "cpi_transfer_roles",
+          "source": "src/lib.rs"
+        },
+        {
+          "detail": "`token_program` account in the instruction's IDL accounts pins the callee",
+          "kind": "cpi_callee_pinned",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "approve_and_disburse",
+      "id": "h-7d444bc6-cpi_integrity-approve_and_disburse",
+      "lowering": {
+        "authority": "treasury",
+        "from": "treasury_usdc",
+        "kind": "transfers_clause",
+        "to": "borrower_usdc"
+      },
+      "payoff": "confirming pins the CPI's direction in the spec — a swapped source/destination or re-routed authority becomes a checkable violation"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; implementation level requires a runtime/source-bound harness",
+      "claim": "`repay_advance` moves tokens from `borrower_usdc` to `treasury_usdc` via SPL Token (authority `authority`).",
+      "class": "cpi_integrity",
+      "confidence": "high",
+      "evidence": [
+        {
+          "detail": "`Transfer { from: borrower_usdc, to: treasury_usdc, authority: authority }` struct literal resolves the account roles",
+          "kind": "cpi_transfer_roles",
+          "source": "src/lib.rs"
+        },
+        {
+          "detail": "`token_program` account in the instruction's IDL accounts pins the callee",
+          "kind": "cpi_callee_pinned",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "repay_advance",
+      "id": "h-7e78b40c-cpi_integrity-repay_advance",
+      "lowering": {
+        "authority": "authority",
+        "from": "borrower_usdc",
+        "kind": "transfers_clause",
+        "to": "treasury_usdc"
+      },
+      "payoff": "confirming pins the CPI's direction in the spec — a swapped source/destination or re-routed authority becomes a checkable violation"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; the transition is model-testable under generated proptests (model-tested)",
+      "claim": "`initialize_treasury` initializes its state exactly once — re-invocation on an already-initialized account is rejected.",
+      "class": "lifecycle_init_once",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "detail": "Anchor `#[account(init, …)]` constraint creates the state account (fails on re-run by construction)",
+          "kind": "anchor_init_constraint",
+          "source": "src/lib.rs"
+        }
+      ],
+      "handler": "initialize_treasury",
+      "id": "h-b40b78d8-lifecycle_init_once-initialize_treasury",
+      "lowering": {
+        "kind": "lifecycle_transition"
+      },
+      "payoff": "confirming models init as a one-shot state transition; re-initialization becomes a checkable violation"
+    },
+    {
+      "assurance": "checking",
+      "backend": "checking on ratify; per-handler transitions become model-testable under generated proptests",
+      "claim": "The program's lifecycle is a state machine over `AdvanceStatus` (Requested | Active | Repaid | Overdue) — the spec's `type State` should carry these variants and state-writing handlers should declare their transitions.",
+      "class": "state_machine",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "detail": "enum `AdvanceStatus` is declared in the IDL and carried by a state struct field",
+          "kind": "idl_status_enum",
+          "source": "/Users/samisha/Projects/Float/program/target/idl/float.json"
+        }
+      ],
+      "handler": "AdvanceStatus",
+      "id": "h-cc9f0d78-state_machine-AdvanceStatus",
+      "lowering": {
+        "kind": "state_adt_rewrite",
+        "variants": [
+          "Requested",
+          "Active",
+          "Repaid",
+          "Overdue"
+        ]
+      },
+      "payoff": "confirming lifts the real status enum into the spec's `type State`, making every lifecycle transition (and its gaps) expressible and checkable"
+    }
+  ],
+  "run_id": "run-float-1788665157",
+  "schema_version": 1,
+  "spec_readiness": {
+    "by_class": {
+      "arithmetic_bound": 2,
+      "authorization": 3,
+      "cpi_integrity": 2,
+      "lifecycle_init_once": 1,
+      "state_machine": 1
+    },
+    "by_confidence": {
+      "high": 5,
+      "medium": 4
+    },
+    "hypotheses_total": 9,
+    "lowerable": 7
+  }
+}

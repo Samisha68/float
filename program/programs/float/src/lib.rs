@@ -51,7 +51,7 @@ const ADVANCE_SEED: &[u8] = b"advance";
 pub mod float {
     use super::*;
 
-    /// Stand up the treasury that funds advances. Called once by the operator.
+    /// Stand up the treasury once, authenticated by the program upgrade authority.
     pub fn initialize_treasury(ctx: Context<InitializeTreasury>) -> Result<()> {
         let treasury = &mut ctx.accounts.treasury;
         treasury.operator = ctx.accounts.operator.key();
@@ -262,6 +262,11 @@ pub mod float {
         // The credit record. Repayment history moves price and speed off-chain;
         // it never raises the ceiling, which is bounded by verified inflow.
         let business = &mut ctx.accounts.business;
+        // mark_overdue may not have run before repayment. Record a late
+        // Active advance here; an Overdue advance was already counted.
+        if was_late && status == AdvanceStatus::Active {
+            business.advances_overdue = business.advances_overdue.checked_add(1).ok_or(FloatError::MathOverflow)?;
+        }
         business.advances_repaid = business.advances_repaid.checked_add(1).ok_or(FloatError::MathOverflow)?;
         business.total_volume_repaid = business
             .total_volume_repaid
@@ -316,6 +321,15 @@ pub mod float {
 pub struct InitializeTreasury<'info> {
     #[account(mut)]
     pub operator: Signer<'info>,
+    // The loader owns this canonical PDA, so callers cannot supply metadata
+    // for a different program or invent their own initialization authority.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = anchor_lang::solana_program::bpf_loader_upgradeable::ID,
+        constraint = program_data.upgrade_authority_address == Some(operator.key()) @ FloatError::Unauthorized
+    )]
+    pub program_data: Account<'info, ProgramData>,
     #[account(
         init,
         payer = operator,

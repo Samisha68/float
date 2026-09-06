@@ -62,12 +62,12 @@ export class DemoLedger implements Ledger {
   async listAdvances() { return [...this.advances].reverse(); }
 
   async requestAdvance(input: { amount: number; expectedInflow: number; payer: string; termDays: number }) {
-    if (input.amount <= 0) throw new Error("Advance amount must be greater than zero.");
+    if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Advance amount must be greater than zero.");
     if (input.amount > POLICY.MAX_ADVANCE_TIER_1)
       throw new Error(`Advance exceeds the tier-1 ceiling of ${POLICY.MAX_ADVANCE_TIER_1.toLocaleString()} USDC.`);
-    if (input.amount > input.expectedInflow)
+    if (!Number.isFinite(input.expectedInflow) || input.amount > input.expectedInflow)
       throw new Error("An advance may not exceed the verified expected inflow.");
-    if (input.termDays < POLICY.MIN_TERM_DAYS || input.termDays > POLICY.MAX_TERM_DAYS)
+    if (!Number.isInteger(input.termDays) || input.termDays < POLICY.MIN_TERM_DAYS || input.termDays > POLICY.MAX_TERM_DAYS)
       throw new Error(`Term must be between ${POLICY.MIN_TERM_DAYS} and ${POLICY.MAX_TERM_DAYS} days.`);
 
     const advance: Advance = {
@@ -89,6 +89,7 @@ export class DemoLedger implements Ledger {
   }
 
   async approveAndDisburse(id: string, feeBps: number) {
+    if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > POLICY.MAX_FEE_BPS) throw new Error("Fee must be between 0 and 1,000 basis points.");
     const a = this.mustFind(id);
     if (a.status !== "Requested") throw new Error("This advance is not awaiting review.");
     a.feeBps = feeBps;

@@ -16,7 +16,7 @@ export type AdvanceStatus = "Requested" | "Active" | "Repaid" | "Overdue";
 export const STATUS_COPY: Record<AdvanceStatus, { label: string; detail: string }> = {
   Requested: { label: "Awaiting review", detail: "Submitted. An underwriter is checking the evidence." },
   Active:    { label: "Funded — repayment due", detail: "USDC disbursed. Repay in full by the due date." },
-  Repaid:    { label: "Repaid in full", detail: "Settled on time. Recorded against your credit history." },
+  Repaid:    { label: "Repaid in full", detail: "Settled. Recorded against your credit history." },
   Overdue:   { label: "Past due", detail: "The due date has passed and this is recorded against the business." },
 };
 

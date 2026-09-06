@@ -1,0 +1,585 @@
+{
+  "version": 3,
+  "mode": "spec_less",
+  "project_root": "program/programs/float",
+  "runtime": "anchor",
+  "handlers": [
+    {
+      "name": "initialize_treasury",
+      "source_file": "src/lib.rs",
+      "intent_tag": "trader_gated",
+      "idl_accounts": [
+        {
+          "name": "operator",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "usdc_mint",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "treasury_usdc",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "associated_token_program",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "system_program",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "idl_args": []
+    },
+    {
+      "name": "set_underwriter",
+      "source_file": "src/lib.rs",
+      "intent_tag": "trader_gated",
+      "idl_accounts": [
+        {
+          "name": "operator",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "idl_args": [
+        {
+          "name": "new_underwriter",
+          "type": "Pubkey"
+        }
+      ]
+    },
+    {
+      "name": "register_business",
+      "source_file": "src/lib.rs",
+      "applicable_categories": [
+        "missing_signer",
+        "arbitrary_cpi",
+        "arithmetic_overflow_wrapping",
+        "lifecycle_one_shot_violation",
+        "cpi_param_swap",
+        "pda_canonical_bump",
+        "quorum_dup_inflation",
+        "quorum_set_dup_at_init",
+        "nonce_absent_action_replay",
+        "creator_admin_outside_quorum",
+        "signer_set_pinned_to_creator_pda_only"
+      ],
+      "intent_tag": "authority_gated",
+      "idl_accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "business",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "idl_args": [
+        {
+          "name": "legal_name",
+          "type": "String"
+        },
+        {
+          "name": "kyb_reference",
+          "type": "Array(U8,32)"
+        }
+      ]
+    },
+    {
+      "name": "request_advance",
+      "source_file": "src/lib.rs",
+      "applicable_categories": [
+        "missing_signer",
+        "arbitrary_cpi",
+        "arithmetic_overflow_wrapping",
+        "lifecycle_one_shot_violation",
+        "cpi_param_swap",
+        "pda_canonical_bump",
+        "quorum_dup_inflation",
+        "quorum_set_dup_at_init",
+        "nonce_absent_action_replay",
+        "creator_admin_outside_quorum",
+        "signer_set_pinned_to_creator_pda_only"
+      ],
+      "intent_tag": "authority_gated",
+      "idl_accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "business",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "advance",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "idl_args": [
+        {
+          "name": "nonce",
+          "type": "U64"
+        },
+        {
+          "name": "amount",
+          "type": "U64"
+        },
+        {
+          "name": "expected_inflow",
+          "type": "U64"
+        },
+        {
+          "name": "term_days",
+          "type": "U16"
+        },
+        {
+          "name": "evidence_reference",
+          "type": "Array(U8,32)"
+        }
+      ]
+    },
+    {
+      "name": "approve_and_disburse",
+      "source_file": "src/lib.rs",
+      "intent_tag": "trader_gated",
+      "idl_accounts": [
+        {
+          "name": "underwriter",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "business",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "advance",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "usdc_mint",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "treasury_usdc",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "borrower_usdc",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "borrower",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "token_program",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "associated_token_program",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "system_program",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "idl_args": [
+        {
+          "name": "fee_bps",
+          "type": "U16"
+        }
+      ]
+    },
+    {
+      "name": "repay_advance",
+      "source_file": "src/lib.rs",
+      "applicable_categories": [
+        "missing_signer",
+        "arbitrary_cpi",
+        "arithmetic_overflow_wrapping",
+        "lifecycle_one_shot_violation",
+        "cpi_param_swap",
+        "pda_canonical_bump",
+        "quorum_dup_inflation",
+        "quorum_set_dup_at_init",
+        "nonce_absent_action_replay",
+        "creator_admin_outside_quorum",
+        "signer_set_pinned_to_creator_pda_only"
+      ],
+      "intent_tag": "authority_gated",
+      "idl_accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "business",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "advance",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "usdc_mint",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "name": "treasury_usdc",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "borrower_usdc",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "idl_args": []
+    },
+    {
+      "name": "mark_overdue",
+      "source_file": "src/lib.rs",
+      "intent_tag": "trader_gated",
+      "idl_accounts": [
+        {
+          "name": "caller",
+          "signer": true,
+          "writable": false
+        },
+        {
+          "name": "business",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "name": "advance",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "idl_args": []
+    }
+  ],
+  "applicable_categories": [
+    "missing_signer",
+    "arbitrary_cpi",
+    "arithmetic_overflow_wrapping",
+    "lifecycle_one_shot_violation",
+    "cpi_param_swap",
+    "pda_canonical_bump",
+    "permissionless_state_writer",
+    "permissionless_create_account_dos",
+    "quorum_dup_inflation",
+    "quorum_set_dup_at_init",
+    "nonce_absent_action_replay",
+    "creator_admin_outside_quorum",
+    "signer_set_pinned_to_creator_pda_only"
+  ],
+  "findings": [],
+  "candidates": [],
+  "engine_runs": [],
+  "outcome": "passed_with_coverage",
+  "idl_path": "/Users/samisha/Projects/Float/program/target/idl/float.json",
+  "run_id": "run-float-1788665145",
+  "hypotheses": [
+    {
+      "id": "h-88bec57f-arithmetic_bound-approve_and_disburse",
+      "class": "arithmetic_bound",
+      "handler": "approve_and_disburse",
+      "claim": "`approve_and_disburse` bounds `fee_bps` (<= MAX_FEE_BPS) and rejects with `FeeTooHigh`.",
+      "evidence": [
+        {
+          "kind": "bound_check_in_body",
+          "detail": "body enforces `fee_bps <= MAX_FEE_BPS` via require! — a held invariant lifted into a question",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming makes the input bound an executable precondition — out-of-domain inputs become a checkable rejection in every backend",
+      "backend": "checking once the bound expression is spec-representable (confirmed, not executable until then)",
+      "assurance": "checking",
+      "confidence": "medium"
+    },
+    {
+      "id": "h-481dece0-arithmetic_bound-request_advance",
+      "class": "arithmetic_bound",
+      "handler": "request_advance",
+      "claim": "`request_advance` bounds `amount` (<= MAX_ADVANCE_ABSOLUTE) and rejects with `ExceedsAbsoluteCeiling`.",
+      "evidence": [
+        {
+          "kind": "bound_check_in_body",
+          "detail": "body enforces `amount <= MAX_ADVANCE_ABSOLUTE` via require! — a held invariant lifted into a question",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming makes the input bound an executable precondition — out-of-domain inputs become a checkable rejection in every backend",
+      "backend": "checking once the bound expression is spec-representable (confirmed, not executable until then)",
+      "assurance": "checking",
+      "confidence": "medium"
+    },
+    {
+      "id": "h-9401e422-authorization-register_business",
+      "class": "authorization",
+      "handler": "register_business",
+      "claim": "`register_business` requires the caller to be the stored authority (signer: authority).",
+      "evidence": [
+        {
+          "kind": "idl_signer_flag",
+          "detail": "`authority` is the instruction's only declared signer",
+          "source": "src/lib.rs"
+        },
+        {
+          "kind": "authority_comparison",
+          "detail": "handler body compares a signer key against a stored authority field",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "assurance": "checking",
+      "confidence": "high",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      }
+    },
+    {
+      "id": "h-0a5dffdd-authorization-repay_advance",
+      "class": "authorization",
+      "handler": "repay_advance",
+      "claim": "`repay_advance` requires the caller to be the stored authority (signer: authority).",
+      "evidence": [
+        {
+          "kind": "idl_signer_flag",
+          "detail": "`authority` is the instruction's only declared signer",
+          "source": "src/lib.rs"
+        },
+        {
+          "kind": "authority_comparison",
+          "detail": "handler body compares a signer key against a stored authority field",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "assurance": "checking",
+      "confidence": "high",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      }
+    },
+    {
+      "id": "h-aba1a6c3-authorization-request_advance",
+      "class": "authorization",
+      "handler": "request_advance",
+      "claim": "`request_advance` requires the caller to be the stored authority (signer: authority).",
+      "evidence": [
+        {
+          "kind": "idl_signer_flag",
+          "detail": "`authority` is the instruction's only declared signer",
+          "source": "src/lib.rs"
+        },
+        {
+          "kind": "authority_comparison",
+          "detail": "handler body compares a signer key against a stored authority field",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming makes unauthorized calls a checkable spec violation (auth guard generated in every backend)",
+      "backend": "checking on ratify; impl-bound backends (impl-Kani / runtime reproducer) where the handler shape is source-bindable",
+      "assurance": "checking",
+      "confidence": "high",
+      "lowering": {
+        "kind": "auth_clause",
+        "signer_account": "authority"
+      }
+    },
+    {
+      "id": "h-7d444bc6-cpi_integrity-approve_and_disburse",
+      "class": "cpi_integrity",
+      "handler": "approve_and_disburse",
+      "claim": "`approve_and_disburse` moves tokens from `treasury_usdc` to `borrower_usdc` via SPL Token (authority `treasury`).",
+      "evidence": [
+        {
+          "kind": "cpi_transfer_roles",
+          "detail": "`Transfer { from: treasury_usdc, to: borrower_usdc, authority: treasury }` struct literal resolves the account roles",
+          "source": "src/lib.rs"
+        },
+        {
+          "kind": "cpi_callee_pinned",
+          "detail": "`token_program` account in the instruction's IDL accounts pins the callee",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming pins the CPI's direction in the spec — a swapped source/destination or re-routed authority becomes a checkable violation",
+      "backend": "checking on ratify; implementation level requires a runtime/source-bound harness",
+      "assurance": "checking",
+      "confidence": "high",
+      "lowering": {
+        "kind": "transfers_clause",
+        "from": "treasury_usdc",
+        "to": "borrower_usdc",
+        "authority": "treasury"
+      }
+    },
+    {
+      "id": "h-7e78b40c-cpi_integrity-repay_advance",
+      "class": "cpi_integrity",
+      "handler": "repay_advance",
+      "claim": "`repay_advance` moves tokens from `borrower_usdc` to `treasury_usdc` via SPL Token (authority `authority`).",
+      "evidence": [
+        {
+          "kind": "cpi_transfer_roles",
+          "detail": "`Transfer { from: borrower_usdc, to: treasury_usdc, authority: authority }` struct literal resolves the account roles",
+          "source": "src/lib.rs"
+        },
+        {
+          "kind": "cpi_callee_pinned",
+          "detail": "`token_program` account in the instruction's IDL accounts pins the callee",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming pins the CPI's direction in the spec — a swapped source/destination or re-routed authority becomes a checkable violation",
+      "backend": "checking on ratify; implementation level requires a runtime/source-bound harness",
+      "assurance": "checking",
+      "confidence": "high",
+      "lowering": {
+        "kind": "transfers_clause",
+        "from": "borrower_usdc",
+        "to": "treasury_usdc",
+        "authority": "authority"
+      }
+    },
+    {
+      "id": "h-b40b78d8-lifecycle_init_once-initialize_treasury",
+      "class": "lifecycle_init_once",
+      "handler": "initialize_treasury",
+      "claim": "`initialize_treasury` initializes its state exactly once — re-invocation on an already-initialized account is rejected.",
+      "evidence": [
+        {
+          "kind": "anchor_init_constraint",
+          "detail": "Anchor `#[account(init, …)]` constraint creates the state account (fails on re-run by construction)",
+          "source": "src/lib.rs"
+        }
+      ],
+      "payoff": "confirming models init as a one-shot state transition; re-initialization becomes a checkable violation",
+      "backend": "checking on ratify; the transition is model-testable under generated proptests (model-tested)",
+      "assurance": "checking",
+      "confidence": "medium",
+      "lowering": {
+        "kind": "lifecycle_transition"
+      }
+    },
+    {
+      "id": "h-cc9f0d78-state_machine-AdvanceStatus",
+      "class": "state_machine",
+      "handler": "AdvanceStatus",
+      "claim": "The program's lifecycle is a state machine over `AdvanceStatus` (Requested | Active | Repaid | Overdue) — the spec's `type State` should carry these variants and state-writing handlers should declare their transitions.",
+      "evidence": [
+        {
+          "kind": "idl_status_enum",
+          "detail": "enum `AdvanceStatus` is declared in the IDL and carried by a state struct field",
+          "source": "/Users/samisha/Projects/Float/program/target/idl/float.json"
+        }
+      ],
+      "payoff": "confirming lifts the real status enum into the spec's `type State`, making every lifecycle transition (and its gaps) expressible and checkable",
+      "backend": "checking on ratify; per-handler transitions become model-testable under generated proptests",
+      "assurance": "checking",
+      "confidence": "medium",
+      "lowering": {
+        "kind": "state_adt_rewrite",
+        "variants": [
+          "Requested",
+          "Active",
+          "Repaid",
+          "Overdue"
+        ]
+      }
+    }
+  ],
+  "spec_readiness": {
+    "hypotheses_total": 9,
+    "by_class": {
+      "arithmetic_bound": 2,
+      "authorization": 3,
+      "cpi_integrity": 2,
+      "lifecycle_init_once": 1,
+      "state_machine": 1
+    },
+    "by_confidence": {
+      "high": 5,
+      "medium": 4
+    },
+    "lowerable": 7
+  }
+}

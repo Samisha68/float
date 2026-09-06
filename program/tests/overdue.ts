@@ -21,6 +21,8 @@ import { Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
 import IDL from "../target/idl/float.json";
 
+import { upgradeMetadata } from "./upgrade-authority";
+
 const USDC = 1_000_000;
 const dollars = (n: number) => new BN(n).mul(new BN(USDC));
 const PROGRAM_ID = new PublicKey(IDL.address);
@@ -116,6 +118,7 @@ describe("float — overdue", () => {
         { address: operator.publicKey, info: { lamports: 100 * LAMPORTS_PER_SOL, data: Buffer.alloc(0), owner: anchor.web3.SystemProgram.programId, executable: false } },
         { address: borrower.publicKey, info: { lamports: 100 * LAMPORTS_PER_SOL, data: Buffer.alloc(0), owner: anchor.web3.SystemProgram.programId, executable: false } },
         mintAccount(),
+        upgradeMetadata(PROGRAM_ID, operator.publicKey),
         // The treasury's token account is NOT pre-baked: initialize_treasury
         // creates it with `init`, and a pre-existing account makes that fail.
         tokenAccount(borrower.publicKey, 1_000 * USDC),

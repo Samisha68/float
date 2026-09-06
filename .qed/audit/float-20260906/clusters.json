@@ -1,0 +1,64 @@
+[
+  {
+    "id": "c-43b054bf-account_type_tag_check-handler:approve_and_disburse",
+    "kind": "account_type_tag_check",
+    "scope": {
+      "kind": "handler",
+      "name": "approve_and_disburse"
+    },
+    "finding_ids": [
+      "anchor:/Users/samisha/Projects/Float/program/programs/float/src/lib.rs:381:type_confusion:borrower"
+    ],
+    "evidence_count": 1,
+    "confidence": "low",
+    "proto_clause_text": "Handler `approve_and_disburse`: accounts are loaded only after their type discriminator is verified",
+    "suggested_syntax": "  // TODO ratified (account_type_tag_check in approve_and_disburse): accounts are loaded only after their type discriminator is verified\n  // Target form: requires <account> is .<ExpectedVariant> else InvalidAccountType\n",
+    "question_md": "## account_type_tag_checked\n\n1 type-tag-free deserialization site(s) in handler `approve_and_disburse` imply this per-handler precondition.\n\n- [ ] **accept** — emit the suggested clause into the spec\n- [ ] **reject** — over-claim; drop with rationale below\n- [ ] **bug** — flag as missing enforcement (not a spec clause)\n\n_notes:_\n\n",
+    "writes_on_accept": "spec.handlers.approve_and_disburse.requires",
+    "writes_on_narrow": "spec.handlers.approve_and_disburse.requires",
+    "writes_on_reject": ".qed/plan/scoping.md",
+    "writes_on_bug": ".qed/findings/"
+  },
+  {
+    "id": "c-f85e9a14-arithmetic_no_overflow-handler:mark_overdue",
+    "kind": "arithmetic_no_overflow",
+    "scope": {
+      "kind": "handler",
+      "name": "mark_overdue"
+    },
+    "finding_ids": [
+      "anchor:/Users/samisha/Projects/Float/program/programs/float/src/lib.rs:484:raw_arith",
+      "anchor:/Users/samisha/Projects/Float/program/programs/float/src/lib.rs:503:raw_arith",
+      "anchor:/Users/samisha/Projects/Float/program/programs/float/src/lib.rs:526:raw_arith"
+    ],
+    "evidence_count": 3,
+    "confidence": "medium",
+    "proto_clause_text": "Handler `mark_overdue`: token-amount and lamport arithmetic is checked (no silent wrap, no saturate)",
+    "suggested_syntax": "  // TODO ratified (arithmetic_no_overflow in mark_overdue): token-amount and lamport arithmetic is checked (no silent wrap, no saturate)\n  // Target form: // Use `+=` / `-=` (checked, v2.7 G3) in effect blocks; not `+=?` (wrap) or `+=!` (saturate)\n",
+    "question_md": "## checked_arithmetic\n\n3 unchecked arithmetic site(s) in handler `mark_overdue` imply this per-handler precondition.\n\n- [ ] **accept** — emit the suggested clause into the spec\n- [ ] **reject** — over-claim; drop with rationale below\n- [ ] **bug** — flag as missing enforcement (not a spec clause)\n\n_notes:_\n\n",
+    "writes_on_accept": "spec.handlers.mark_overdue.requires",
+    "writes_on_narrow": "spec.handlers.mark_overdue.requires",
+    "writes_on_reject": ".qed/plan/scoping.md",
+    "writes_on_bug": ".qed/findings/"
+  },
+  {
+    "id": "c-3d4d4f27-lifecycle_one_shot-handler:approve_and_disburse",
+    "kind": "lifecycle_one_shot",
+    "scope": {
+      "kind": "handler",
+      "name": "approve_and_disburse"
+    },
+    "finding_ids": [
+      "anchor:/Users/samisha/Projects/Float/program/programs/float/src/lib.rs:381:init_if_needed:ApproveAndDisburse"
+    ],
+    "evidence_count": 1,
+    "confidence": "low",
+    "proto_clause_text": "Handler `approve_and_disburse`: init-style handlers move the account from Uninit to Init exactly once",
+    "suggested_syntax": "  // TODO ratified (lifecycle_one_shot in approve_and_disburse): init-style handlers move the account from Uninit to Init exactly once\n  // Target form: // Model as `handler init : State.Uninit -> State.Init` + `establishes init_is_one_shot`\n",
+    "question_md": "## init_is_one_shot\n\n1 init-without-is-initialized site(s) in handler `approve_and_disburse` imply this per-handler precondition.\n\n- [ ] **accept** — emit the suggested clause into the spec\n- [ ] **reject** — over-claim; drop with rationale below\n- [ ] **bug** — flag as missing enforcement (not a spec clause)\n\n_notes:_\n\n",
+    "writes_on_accept": "spec.handlers.approve_and_disburse.requires",
+    "writes_on_narrow": "spec.handlers.approve_and_disburse.requires",
+    "writes_on_reject": ".qed/plan/scoping.md",
+    "writes_on_bug": ".qed/findings/"
+  }
+]
