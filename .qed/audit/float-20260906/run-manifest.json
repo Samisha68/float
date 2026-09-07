@@ -1,0 +1,118 @@
+{
+  "artifacts": {
+    "domain_dossier_json": "domain-dossier.json",
+    "domain_dossier_markdown": "domain-dossier.md",
+    "domain_interview": "domain-interview.json",
+    "domain_sequences": null,
+    "hypotheses": "hypotheses.json",
+    "ratified_intent": null,
+    "report": null,
+    "spec_handoff": null,
+    "suppressions": null
+  },
+  "audit_id": "audit_float_float_20260906",
+  "lanes": [
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "source-review",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [
+        "clusters.json",
+        "domain-dossier.json"
+      ],
+      "finished_at": null,
+      "name": "ordinary-probe",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "passed"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "compile",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "mollusk",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "miri",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "crucible-protocol",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "crucible-skeleton",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    },
+    {
+      "artifact_paths": [],
+      "finished_at": null,
+      "name": "crucible-domain",
+      "reason": null,
+      "resume_command": null,
+      "started_at": null,
+      "status": "not-run"
+    }
+  ],
+  "run_id": "run-float-1788665157",
+  "schema_uri": "https://qedgen.dev/schemas/auditor/audit-run-manifest-v1.schema.json",
+  "schema_version": 1,
+  "spec_readiness": {
+    "by_class": {
+      "arithmetic_bound": 2,
+      "authorization": 3,
+      "cpi_integrity": 2,
+      "lifecycle_init_once": 1,
+      "state_machine": 1
+    },
+    "by_confidence": {
+      "high": 5,
+      "medium": 4
+    },
+    "hypotheses_total": 9,
+    "lowerable": 7
+  },
+  "status": "running",
+  "target": {
+    "mode": "spec-less",
+    "program_root": "/Users/samisha/Projects/Float/program/programs/float",
+    "runtime": "anchor",
+    "source_commit": null,
+    "spec": null
+  },
+  "tool_versions": {}
+}

@@ -19,19 +19,22 @@ export const USDC_DECIMALS = 6;
 export const toBaseUnits = (dollars: number) => Math.round(dollars * 10 ** USDC_DECIMALS);
 export const fromBaseUnits = (units: number | bigint) => Number(units) / 10 ** USDC_DECIMALS;
 
-/** PDA seeds — must match the program's constants exactly. */
-export const TREASURY_SEED = Buffer.from("treasury");
-export const BUSINESS_SEED = Buffer.from("business");
-export const ADVANCE_SEED = Buffer.from("advance");
+/** PDA seeds — must match the program's constants exactly.
+ *  Uint8Array rather than Buffer: Vite does not polyfill Node globals, so a
+ *  Buffer here compiles and then throws in the browser. */
+const utf8 = new TextEncoder();
+export const TREASURY_SEED = utf8.encode("treasury");
+export const BUSINESS_SEED = utf8.encode("business");
+export const ADVANCE_SEED = utf8.encode("advance");
 
 export const treasuryPda = () =>
   PublicKey.findProgramAddressSync([TREASURY_SEED], FLOAT_PROGRAM_ID)[0];
 
 export const businessPda = (authority: PublicKey) =>
-  PublicKey.findProgramAddressSync([BUSINESS_SEED, authority.toBuffer()], FLOAT_PROGRAM_ID)[0];
+  PublicKey.findProgramAddressSync([BUSINESS_SEED, authority.toBytes()], FLOAT_PROGRAM_ID)[0];
 
 export const advancePda = (business: PublicKey, nonce: bigint) => {
-  const n = Buffer.alloc(8);
-  n.writeBigUInt64LE(nonce);
-  return PublicKey.findProgramAddressSync([ADVANCE_SEED, business.toBuffer(), n], FLOAT_PROGRAM_ID)[0];
+  const n = new Uint8Array(8);
+  new DataView(n.buffer).setBigUint64(0, nonce, true); // u64 little-endian
+  return PublicKey.findProgramAddressSync([ADVANCE_SEED, business.toBytes(), n], FLOAT_PROGRAM_ID)[0];
 };

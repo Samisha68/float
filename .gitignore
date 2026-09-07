@@ -54,3 +54,5 @@ coverage/
 
 # Rendered promo output (regenerable via `yarn render`)
 promo/out/
+.anchor/
+web/data/

@@ -27,6 +27,9 @@ const USDC_DECIMALS: u64 = 1_000_000;
 const MAX_ADVANCE_TIER_1: u64 = 5_000 * USDC_DECIMALS;
 
 /// Absolute ceiling for the MVP, pledge or not. $25,000.
+/// Not reachable today: request_advance and approve_and_disburse both cap at
+/// MAX_ADVANCE_TIER_1, because nothing on-chain records a pledge yet. This
+/// bound exists so the larger ceiling is already enforced when pledges land.
 const MAX_ADVANCE_ABSOLUTE: u64 = 25_000 * USDC_DECIMALS;
 
 /// Advances are short-dated by design.
@@ -48,7 +51,7 @@ const ADVANCE_SEED: &[u8] = b"advance";
 pub mod float {
     use super::*;
 
-    /// Stand up the treasury that funds advances. Called once by the operator.
+    /// Stand up the treasury once, authenticated by the program upgrade authority.
     pub fn initialize_treasury(ctx: Context<InitializeTreasury>) -> Result<()> {
         let treasury = &mut ctx.accounts.treasury;
         treasury.operator = ctx.accounts.operator.key();
@@ -112,6 +115,12 @@ pub mod float {
     ) -> Result<()> {
         require!(amount > 0, FloatError::InvalidAmount);
         require!(amount <= MAX_ADVANCE_ABSOLUTE, FloatError::ExceedsAbsoluteCeiling);
+        // Fail here, not at approval. approve_and_disburse enforces the same
+        // tier-1 ceiling, so without this check a request between the two
+        // ceilings is accepted and then strands in Requested forever: the
+        // underwriter cannot approve it and nothing can cancel it. The
+        // borrower must learn the limit when they ask, not days later.
+        require!(amount <= MAX_ADVANCE_TIER_1, FloatError::ExceedsTier1Ceiling);
         require!(
             term_days >= MIN_TERM_DAYS && term_days <= MAX_TERM_DAYS,
             FloatError::InvalidTerm
@@ -253,6 +262,11 @@ pub mod float {
         // The credit record. Repayment history moves price and speed off-chain;
         // it never raises the ceiling, which is bounded by verified inflow.
         let business = &mut ctx.accounts.business;
+        // mark_overdue may not have run before repayment. Record a late
+        // Active advance here; an Overdue advance was already counted.
+        if was_late && status == AdvanceStatus::Active {
+            business.advances_overdue = business.advances_overdue.checked_add(1).ok_or(FloatError::MathOverflow)?;
+        }
         business.advances_repaid = business.advances_repaid.checked_add(1).ok_or(FloatError::MathOverflow)?;
         business.total_volume_repaid = business
             .total_volume_repaid
@@ -307,6 +321,15 @@ pub mod float {
 pub struct InitializeTreasury<'info> {
     #[account(mut)]
     pub operator: Signer<'info>,
+    // The loader owns this canonical PDA, so callers cannot supply metadata
+    // for a different program or invent their own initialization authority.
+    #[account(
+        seeds = [crate::ID.as_ref()],
+        bump,
+        seeds::program = anchor_lang::solana_program::bpf_loader_upgradeable::ID,
+        constraint = program_data.upgrade_authority_address == Some(operator.key()) @ FloatError::Unauthorized
+    )]
+    pub program_data: Account<'info, ProgramData>,
     #[account(
         init,
         payer = operator,
@@ -392,8 +415,12 @@ pub struct ApproveAndDisburse<'info> {
     pub usdc_mint: Account<'info, Mint>,
     #[account(mut, associated_token::mint = usdc_mint, associated_token::authority = treasury)]
     pub treasury_usdc: Account<'info, TokenAccount>,
+    /// Created on demand. A business borrowing for the first time has never
+    /// held USDC, so without this the underwriter cannot pay it at all. The
+    /// address is a PDA of mint and borrower, so there is nothing to spoof.
     #[account(
-        mut,
+        init_if_needed,
+        payer = underwriter,
         associated_token::mint = usdc_mint,
         associated_token::authority = borrower
     )]
@@ -402,6 +429,8 @@ pub struct ApproveAndDisburse<'info> {
     #[account(address = advance.borrower @ FloatError::Unauthorized)]
     pub borrower: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
