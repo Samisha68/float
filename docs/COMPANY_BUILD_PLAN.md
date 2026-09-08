@@ -11,7 +11,7 @@
 # Float — Company Build Plan (DeFi)
 
 Status: DRAFT — under /autoplan review
-Inputs: [FLOAT_STRATEGY_GIST.md](FLOAT_STRATEGY_GIST.md), hackathon prototype (now `archive/program/`, `archive/app/`)
+Inputs: [FLOAT_STRATEGY_GIST.md](FLOAT_STRATEGY_GIST.md), the March 2026 hackathon prototype (removed from the tree; see git history)
 Date: July 20, 2026
 
 ## Thesis

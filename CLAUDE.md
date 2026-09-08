@@ -10,11 +10,11 @@ Read README.md before anything else.
 
 ## Ground rules for this repo
 
-**`archive/` is dead code.** It holds the March 2026 hackathon build — a *consumer mobile*
-crypto lending app. It is not the product, not maintained, and must not be built on,
-upgraded, or copied from beyond the Anchor account patterns noted in
-[archive/README.md](archive/README.md). If a task seems to call for editing anything under
-`archive/`, stop and ask — the answer is almost always that new code belongs elsewhere.
+**The March 2026 hackathon build is gone from the tree.** It was a *consumer mobile* crypto
+lending app under `archive/`, removed on 8 September 2026 when this repo was made public so
+that exactly one Anchor program lives here and nothing can read the wrong `lib.rs`. It is
+still in git history if you need an account pattern from it. It is not the product and must
+not be restored, built on, or copied from without asking first.
 
 **Documents disagree with each other on purpose.** Several docs in `docs/` describe products
 Float abandoned. Every superseded file carries a `<!-- float-status-banner -->` block at the

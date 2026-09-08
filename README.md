@@ -74,7 +74,6 @@ mistakes them for decided:
 | `docs/` | Strategy, research, brand, and the program QA report. | Mixed — read the status banner at the top of each file. |
 | `promo/` | Remotion source for the 10s brand trailer. | Current. |
 | `DESIGN.md` | Visual system: the Ascending Arcade mark, four-value palette, type. | **Authoritative** for anything visual. |
-| `archive/` | The March 2026 MONOLITH hackathon build — a *consumer mobile* lending app, with its own Anchor program. | **Dead.** Not the product, not maintained, not built on. Read [archive/README.md](archive/README.md) first. |
 | — | The public website and waitlist | A **separate repo**: [Samisha68/Float_website](https://github.com/Samisha68/Float_website), deployed on Vercel. Not part of this codebase. |
 
 ## Running it
