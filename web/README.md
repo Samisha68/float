@@ -47,9 +47,8 @@ Accounts, documents, sessions, and applications persist in `web/data/float.sqlit
 
 - `/?mode=demo`: original in-memory sample demonstration. No transactions; refresh resets it.
 - `/?mode=devnet`: wallet-based, standalone devnet test using `OnChainLedger`. This is separate from saved applications. Business labels are generic and evidence references are zeroed test placeholders. No company names or invoice files are sent to chain by this client.
-- Devnet was checked 6 September: still on the 325,792-byte legacy deployment. The client blocks writes against this known incompatible build. Upgrade and treasury/test-token funding are required before end-to-end wallet testing. Matching account size alone is not proof of matching code; verify the intended deployed binary before funding tests.
+- Devnet was redeployed 8 September 2026. The deployed binary matches `program/` byte for byte (sha256 `a848c694d61574eca32a22bb3b3a696e45aa4c48f70fb6c5110719b1e536620a`), so the client's compatibility check passes and the wallet test flow is open. Matching account size alone is not proof of matching code; compare the dumped binary before funding tests.
 - Existing program backup: `data/backups/float-devnet-20260906.so` (ignored by Git).
-- The free devnet airdrop was rate-limited. No deployment or treasury mutation was performed.
 - Approval requires the treasury's underwriter wallet; repayment requires the borrower's wallet. Borrower repayment needs principal **plus fee** in test USDC and devnet SOL for fees.
 
 The private application workflow and on-chain tests are deliberately separate until server-side transaction reconciliation and application-to-wallet binding are implemented. Never mark an application paid based only on a client-submitted signature.

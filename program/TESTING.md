@@ -6,4 +6,4 @@ Run `anchor test --provider.cluster localnet` for the validator transaction suit
 
 Verified on 6 September 2026: 21 validator tests and nine bankrun tests pass. Tests cover authorized initialization, rejection of unauthorized and foreign-metadata initialization, revoked authority, repayment before/at/after the deadline, and no double counting after an overdue flag.
 
-These fixes apply to newly executed instructions after deployment. They do not repair historical overdue counters or replace an already initialized treasury operator. The updated program has been tested locally; devnet deployment is a separate step.
+These fixes apply to newly executed instructions after deployment. They do not repair historical overdue counters or replace an already initialized treasury operator. The updated program was deployed to devnet on 8 September 2026; the deployed binary matches this source byte for byte.

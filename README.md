@@ -69,7 +69,7 @@ mistakes them for decided:
 
 | Path | What it is | Status |
 |---|---|---|
-| `program/` | The Solana program. Anchor 0.31.1. Seven instructions — `initialize_treasury`, `set_underwriter`, `register_business`, `request_advance`, `approve_and_disburse`, `repay_advance`, `mark_overdue` — over three accounts and sixteen error codes. | **Current.** Deployed to devnet; see the deployment note below. |
+| `program/` | The Solana program. Anchor 0.31.1. Seven instructions — `initialize_treasury`, `set_underwriter`, `register_business`, `request_advance`, `approve_and_disburse`, `repay_advance`, `mark_overdue` — over three accounts and sixteen error codes. | **Current.** Deployed and verified on devnet — see [On chain](#on-chain). |
 | `web/` | The application. Vite 6 + React 18 + Tailwind 4 frontend, Node + SQLite API in `web/server/`. Privy sign-in, invite-gated onboarding, invoice submission, an operator underwriting queue, and a borrower dashboard. | **Current.** Runs locally; not published. |
 | `docs/` | Strategy, research, brand, and the program QA report. | Mixed — read the status banner at the top of each file. |
 | `promo/` | Remotion source for the 10s brand trailer. | Current. |
@@ -91,25 +91,30 @@ npm test && npm run build
 `web/README.md` covers Privy setup, invitations, the operator command, and the three run
 modes (`/`, `?mode=demo`, `?mode=devnet`). `program/TESTING.md` covers program verification.
 
-## On-chain status — read before verifying the deployment
+## On chain
 
-Program ID **`6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8`** on **devnet**.
+Program ID **`6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8`**, deployed on **devnet**.
 
-**The deployed binary is behind the source in this repo.** Devnet currently holds a
-325,792-byte build; the source here compiles to 410,184 bytes. Two fixes recorded in
-[`docs/QA_REPORT.md`](docs/QA_REPORT.md) — rejecting over-ceiling advances at request time,
-and paying a borrower who has never held USDC — exist in source and are **not** yet on
-chain. Redeploying requires `solana program extend` and devnet SOL.
+The deployed binary matches the source in this repository. Verify it yourself:
 
-The client knows this: `web/src/lib/onchain.ts` checks the deployed program before writing
-and refuses to transact against the known-incompatible build. Matching account size alone is
-never proof of matching code — verify the intended binary before funding any test.
+```bash
+cd program && anchor build
+solana program dump 6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8 onchain.so --url devnet
+head -c 410184 onchain.so | shasum -a 256    # a848c694d61574eca32a22bb3b3a696e45aa4c48f70fb6c5110719b1e536620a
+shasum -a 256 target/deploy/float.so         # same
+```
 
-The treasury is not yet initialized on devnet and holds no test USDC, so the end-to-end
-wallet loop is not yet exercisable. The private application workflow in `web/` is
-deliberately separate from the on-chain test flow until server-side transaction
-reconciliation exists. Funding in that workspace is simulated. No real funds move and no
-financing is promised.
+`web/src/lib/onchain.ts` checks the deployed program before it writes, so the wallet test
+flow refuses to transact against a build it does not recognise. Matching account size alone
+is never proof of matching code — compare the binary, as above.
+
+Underwriting is in progress. The operator review queue, evidence handling and decision
+records are being built in `web/`; the credit model behind them is still being developed.
+The private application workflow is deliberately separate from the on-chain test flow until
+server-side transaction reconciliation lands.
+
+**Funding in the pilot workspace is simulated. No real funds move, and no financing is
+promised.**
 
 ## Documents worth reading, in order
 
