@@ -65,33 +65,64 @@ mistakes them for decided:
 
 ---
 
-## Repo status — read this before the code
-
-**The code in this repository predates the current direction.** It is a hackathon
-prototype (MONOLITH Solana Mobile Hackathon) for a *consumer mobile* lending product that
-is no longer what Float is building. It is kept for the on-chain patterns that carry over,
-not as a statement of product intent.
+## What is in this repository
 
 | Path | What it is | Status |
 |---|---|---|
-| `archive/` | The hackathon build: Anchor program + Expo mobile app | **Dead.** Kept only as an Anchor reference. Read [archive/README.md](archive/README.md) before touching anything in it. |
-| — | Coming-soon splash page | Lives in a **separate repo**, `~/Projects/Float_website` ([Samisha68/Float_website](https://github.com/Samisha68/Float_website)), deployed by Vercel. Not part of this repo. |
-| `promo/` | Remotion source for the 10s brand trailer | Current. |
-| `docs/` | Strategy, research and brand | Mixed — see the status banner at the top of each file. |
-| `DESIGN.md` | Visual system: the Ascending Arcade mark, four-value palette, type | **Authoritative.** Not yet implemented anywhere in code. |
+| `program/` | The Solana program. Anchor 0.31.1. Seven instructions — `initialize_treasury`, `set_underwriter`, `register_business`, `request_advance`, `approve_and_disburse`, `repay_advance`, `mark_overdue` — over three accounts and sixteen error codes. | **Current.** Deployed to devnet; see the deployment note below. |
+| `web/` | The application. Vite 6 + React 18 + Tailwind 4 frontend, Node + SQLite API in `web/server/`. Privy sign-in, invite-gated onboarding, invoice submission, an operator underwriting queue, and a borrower dashboard. | **Current.** Runs locally; not published. |
+| `docs/` | Strategy, research, brand, and the program QA report. | Mixed — read the status banner at the top of each file. |
+| `promo/` | Remotion source for the 10s brand trailer. | Current. |
+| `DESIGN.md` | Visual system: the Ascending Arcade mark, four-value palette, type. | **Authoritative** for anything visual. |
+| `archive/` | The March 2026 MONOLITH hackathon build — a *consumer mobile* lending app, with its own Anchor program. | **Dead.** Not the product, not maintained, not built on. Read [archive/README.md](archive/README.md) first. |
+| — | The public website and waitlist | A **separate repo**: [Samisha68/Float_website](https://github.com/Samisha68/Float_website), deployed on Vercel. Not part of this codebase. |
 
-Prototype details — instruction lists, wallet integration, agent script, devnet setup —
-are preserved in [`docs/PROTOTYPE.md`](docs/PROTOTYPE.md).
+## Running it
+
+```bash
+# Program — build, then the clock-controlled and validator suites
+cd program && anchor build && npm run test:bankrun
+anchor test --provider.cluster localnet
+
+# Application — Vite and the API together on :5173 and :3001
+cd web && npm install && npm run dev
+npm test && npm run build
+```
+
+`web/README.md` covers Privy setup, invitations, the operator command, and the three run
+modes (`/`, `?mode=demo`, `?mode=devnet`). `program/TESTING.md` covers program verification.
+
+## On-chain status — read before verifying the deployment
+
+Program ID **`6NjXwwwuFNWV3MBk2r2wv68hDde1snEiMMfwrvQ31Db8`** on **devnet**.
+
+**The deployed binary is behind the source in this repo.** Devnet currently holds a
+325,792-byte build; the source here compiles to 410,184 bytes. Two fixes recorded in
+[`docs/QA_REPORT.md`](docs/QA_REPORT.md) — rejecting over-ceiling advances at request time,
+and paying a borrower who has never held USDC — exist in source and are **not** yet on
+chain. Redeploying requires `solana program extend` and devnet SOL.
+
+The client knows this: `web/src/lib/onchain.ts` checks the deployed program before writing
+and refuses to transact against the known-incompatible build. Matching account size alone is
+never proof of matching code — verify the intended binary before funding any test.
+
+The treasury is not yet initialized on devnet and holds no test USDC, so the end-to-end
+wallet loop is not yet exercisable. The private application workflow in `web/` is
+deliberately separate from the on-chain test flow until server-side transaction
+reconciliation exists. Funding in that workspace is simulated. No real funds move and no
+financing is promised.
 
 ## Documents worth reading, in order
 
 1. **`DESIGN.md`** — the visual system. Locked. Read before any UI decision.
-2. **`docs/float-redesign.md`** — the sharpest analysis in the repo. Its proposed pivot was
+2. **`docs/QA_REPORT.md`** — every instruction driven with real transactions, plus a
+   bankrun suite for the clock-dependent path. Two bugs found and fixed.
+3. **`docs/float-redesign.md`** — the sharpest analysis in the repo. Its proposed pivot was
    not the one taken, but its central argument survives every pivot: enforcement cannot be
    solved with information, only with control of cash flow or a court. Read §1, §7 and §14.
-3. **`docs/ONCHAIN_CREDIT_FIELD_GUIDE.md`** — how credit systems actually work, and the ten
+4. **`docs/ONCHAIN_CREDIT_FIELD_GUIDE.md`** — how credit systems actually work, and the ten
    questions any Float model has to answer.
-4. **`docs/DESIGNER_BRIEF.md`** — written for an adjacent product, but the audience, the
+5. **`docs/DESIGNER_BRIEF.md`** — written for an adjacent product, but the audience, the
    desktop-first stance and the status-system problem all transfer.
 
 Everything else in `docs/` is superseded and labelled as such.

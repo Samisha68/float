@@ -56,3 +56,10 @@ coverage/
 promo/out/
 .anchor/
 web/data/
+
+# Deck build scratch and rendered decks (deliverables, not source)
+.deck-build/
+output/
+
+# Local tooling state
+.qed/

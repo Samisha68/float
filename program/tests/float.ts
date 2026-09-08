@@ -225,7 +225,7 @@ describe("float", () => {
   // approve_and_disburse capped at $5,000, so anything in between was
   // accepted and then stranded in Requested with no way forward and no way
   // to cancel. Found by /qa on 2026-09-01.
-  // Report: .gstack/qa-reports/qa-report-float-program-2026-09-01.md
+  // Report: docs/QA_REPORT.md
 
   it("ISSUE-001: an advance above the tier-1 ceiling is rejected at request time", async () => {
     borrowerUsdc = getAssociatedTokenAddressSync(usdcMint, borrower.publicKey);
@@ -261,7 +261,7 @@ describe("float", () => {
   // Regression: ISSUE-002 — a first-time borrower has no USDC account, and
   // ApproveAndDisburse had no init_if_needed, so the underwriter could not
   // pay them at all. Found by /qa on 2026-09-01.
-  // Report: .gstack/qa-reports/qa-report-float-program-2026-09-01.md
+  // Report: docs/QA_REPORT.md
 
   it("ISSUE-002: approve creates the USDC account for a first-time borrower", async () => {
     const fresh = Keypair.generate();
