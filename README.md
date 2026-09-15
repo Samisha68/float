@@ -71,9 +71,7 @@ mistakes them for decided:
 |---|---|---|
 | `program/` | The Solana program. Anchor 0.31.1. Seven instructions — `initialize_treasury`, `set_underwriter`, `register_business`, `request_advance`, `approve_and_disburse`, `repay_advance`, `mark_overdue` — over three accounts and sixteen error codes. | **Current.** Deployed and verified on devnet — see [On chain](#on-chain). |
 | `web/` | The application. Vite 6 + React 18 + Tailwind 4 frontend, Node + SQLite API in `web/server/`. Privy sign-in, invite-gated onboarding, invoice submission, an operator underwriting queue, and a borrower dashboard. | **Current.** Runs locally; not published. |
-| `docs/` | Strategy, research, brand, and the program QA report. | Mixed — read the status banner at the top of each file. |
-| `promo/` | Remotion source for the 10s brand trailer. | Current. |
-| `DESIGN.md` | Visual system: the Ascending Arcade mark, four-value palette, type. | **Authoritative** for anything visual. |
+| `DESIGN.md` | Visual system: the Float logo, black-and-white palette, type. | **Authoritative** for anything visual. |
 | — | The public website and waitlist | A **separate repo**: [Samisha68/Float_website](https://github.com/Samisha68/Float_website), deployed on Vercel. Not part of this codebase. |
 
 ## Running it
@@ -116,17 +114,8 @@ server-side transaction reconciliation lands.
 **Funding in the pilot workspace is simulated. No real funds move, and no financing is
 promised.**
 
-## Documents worth reading, in order
+## Documents worth reading
 
 1. **`DESIGN.md`** — the visual system. Locked. Read before any UI decision.
-2. **`docs/QA_REPORT.md`** — every instruction driven with real transactions, plus a
-   bankrun suite for the clock-dependent path. Two bugs found and fixed.
-3. **`docs/float-redesign.md`** — the sharpest analysis in the repo. Its proposed pivot was
-   not the one taken, but its central argument survives every pivot: enforcement cannot be
-   solved with information, only with control of cash flow or a court. Read §1, §7 and §14.
-4. **`docs/ONCHAIN_CREDIT_FIELD_GUIDE.md`** — how credit systems actually work, and the ten
-   questions any Float model has to answer.
-5. **`docs/DESIGNER_BRIEF.md`** — written for an adjacent product, but the audience, the
-   desktop-first stance and the status-system problem all transfer.
-
-Everything else in `docs/` is superseded and labelled as such.
+2. **`web/README.md`** — running the application.
+3. **`program/TESTING.md`** — verifying the program.
