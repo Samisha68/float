@@ -16,10 +16,12 @@ that exactly one Anchor program lives here and nothing can read the wrong `lib.r
 still in git history if you need an account pattern from it. It is not the product and must
 not be restored, built on, or copied from without asking first.
 
-**Documents disagree with each other on purpose.** Several docs in `docs/` describe products
-Float abandoned. Every superseded file carries a `<!-- float-status-banner -->` block at the
-top saying what is dead and what is still live. Read that banner before trusting a document's
-contents, and add one to any doc that gets superseded in future.
+**`docs/` is local only.** Strategy, research, brand and QA write-ups live in `docs/`, which
+is gitignored and never pushed. Several describe products Float abandoned; each superseded
+file carries a `<!-- float-status-banner -->` block saying what is dead and what is still
+live. Read that banner before trusting a document. The only committed markdown is
+`README.md`, `CLAUDE.md`, `DESIGN.md`, `web/README.md` and `program/TESTING.md`; do not add
+new docs to the tracked tree without asking.
 
 **No product surface exists yet** for the current direction. The live coming-soon splash page
 is a *different project* in a *different repo* — `~/Projects/Float_website`, deployed by

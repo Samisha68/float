@@ -52,8 +52,6 @@ coverage/
 # yarn.lock
 .gstack/
 
-# Rendered promo output (regenerable via `yarn render`)
-promo/out/
 .anchor/
 web/data/
 
@@ -63,3 +61,6 @@ output/
 
 # Local tooling state
 .qed/
+
+# Internal strategy, research and brand docs: local only, never pushed
+docs/
