@@ -53,6 +53,18 @@ Accounts, documents, sessions, and applications persist in `web/data/float.sqlit
 
 The private application workflow and on-chain tests are deliberately separate until server-side transaction reconciliation and application-to-wallet binding are implemented. Never mark an application paid based only on a client-submitted signature.
 
+## The borrower workspace
+
+Signed-in borrowers get the journey from the prototype, driven by the API. Screens live in `src/journey/`, so the prototype and the live workspace share one set of words and cannot drift apart:
+
+- `journey/AdvanceCard.tsx` draws an advance at any stage. A button appears only when its handler is passed, so demo actions exist in the prototype and real actions in the workspace, and neither shows an action the other invented.
+- `lib/journey.ts` maps applications onto the journey (pure, unit-tested); `lib/live.ts` makes the calls.
+- `LiveWorkspace.tsx` is the signed-in workspace. Every action re-reads the list from the server rather than patching state locally, because the server decides what state an application is in.
+
+The live form caps an advance at **$5,000**, which is what the API accepts and the program's first-tier ceiling. Its price comes from `/api/quote` and is labelled indicative until Float makes an offer.
+
+Routing: `/` is the signed-in workspace (borrowers get the new one, operators keep the review queue until it is ported, and `?mode=queue` opens the queue), `?mode=prototype` is the offline journey, `?mode=demo` and `?mode=devnet` are unchanged.
+
 ## Pricing and the repayment record
 
 `server/pricing.mjs` is the only place an advance is priced. It holds the published fee by term, the discount a repayment record earns (0.1 points off the fee and 5 off the collateral margin per repayment, capped at six, and never below half the published rate), and the count of a borrower's repaid applications. **The numbers are provisional placeholders, not a credit decision.**

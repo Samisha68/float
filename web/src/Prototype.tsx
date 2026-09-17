@@ -35,6 +35,8 @@ import {
   type Stage,
   type State,
 } from "./lib/prototype";
+import { AdvanceCard, type AdvanceHandlers, type AdvanceView } from "./journey/AdvanceCard";
+import { Field, Rows, Upload } from "./journey/parts";
 import "./prototype.css";
 
 const STORAGE_KEY = "float-prototype-v2";
@@ -49,90 +51,6 @@ function load(): State {
   } catch {
     return initial();
   }
-}
-
-function Field({
-  label,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="fp-field">
-      <span className="fp-label">{label}</span>
-      {children}
-      {hint && !error ? <small className="fp-hint">{hint}</small> : null}
-      {error ? <small className="fp-error">{error}</small> : null}
-    </label>
-  );
-}
-
-function Rows({ items }: { items: [string, ReactNode][] }) {
-  return (
-    <dl className="fp-rows">
-      {items.map(([term, value]) => (
-        <div key={term}>
-          <dt>{term}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Upload({
-  label,
-  files,
-  error,
-  sample,
-  onChange,
-}: {
-  label: string;
-  files: string[];
-  error?: string;
-  sample: string[];
-  onChange: (files: string[]) => void;
-}) {
-  const [problem, setProblem] = useState("");
-
-  const add = (list: FileList | null) => {
-    const picked = Array.from(list || []);
-    const bad = picked.find((file) => file.size > 10 * 1024 * 1024 || !/\.(pdf|png|jpe?g)$/i.test(file.name));
-    if (bad) {
-      setProblem("Use PDF, PNG or JPG files under 10 MB.");
-      return;
-    }
-    setProblem("");
-    onChange([...new Set([...files, ...picked.map((file) => file.name)])]);
-  };
-
-  return (
-    <div className="fp-upload">
-      <div className="fp-upload-head">
-        <span className="fp-label">{label}</span>
-        <button type="button" className="fp-link" onClick={() => onChange(sample)}>
-          Use sample files
-        </button>
-      </div>
-      <input type="file" aria-label={label} multiple accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => add(e.target.files)} />
-      {files.map((file) => (
-        <div className="fp-file" key={file}>
-          <span>{file}</span>
-          <button type="button" aria-label={`Remove ${file}`} onClick={() => onChange(files.filter((f) => f !== file))}>
-            Remove
-          </button>
-        </div>
-      ))}
-      <small className="fp-hint">Files stay on your device. Only the names are saved.</small>
-      {problem ? <small className="fp-error">{problem}</small> : null}
-      {error && !problem ? <small className="fp-error">{error}</small> : null}
-    </div>
-  );
 }
 
 export default function Prototype() {
@@ -459,6 +377,47 @@ export default function Prototype() {
     </>
   );
 
+  const view: AdvanceView = {
+    stage: state.stage,
+    reference: "FL-0001",
+    business: state.business.name,
+    amount: state.request.amount,
+    days: state.request.days,
+    payer: state.request.payer,
+    incoming: state.request.incoming,
+    offered: Boolean(state.agreed),
+    rate: terms.rate,
+    fee: terms.fee,
+    total: terms.total,
+    dueOn: funded ? due : null,
+    daysLeft: funded ? daysBetween(isoDate(), due) : null,
+    note: state.note ?? "",
+    record,
+    marginEarned: BASE_MARGIN - marginRequired(record),
+    nextRate: live.rate,
+    nextFee: live.fee,
+  };
+
+  const handlers: AdvanceHandlers = {
+    onRespond: (reply) => {
+      setState((prev) => respond(prev, reply));
+      setToast("Sent. Your application is back with us.");
+    },
+    onAccept: () => move("accepted", "Accepted. We’re sending the funds."),
+    onDecline: () => move("declined", "Offer declined. Nothing was charged."),
+    onRepay: () => move("repaid", "Repaid. That’s one more on your record."),
+    onReopen: () => move("offered", "The offer is open again."),
+    onSeeRecord: () => setTab("Your record"),
+    onStartAgain: () => {
+      setState((prev) => startAgain(prev));
+      setToast("Fresh request. Your record carries over.");
+    },
+    /* Demo only: a real decision is made by a person, in hours. */
+    onDemoDecision: () => move("offered", "Approved. Your offer is ready."),
+    onDemoInformation: () => move("information", "Float asked for one more thing."),
+    onDemoFund: () => move("active", `${money(state.request.amount)} is in your wallet.`),
+  };
+
   const dashboard = (
     <>
       {funded ? (
@@ -481,225 +440,18 @@ export default function Prototype() {
         </div>
       ) : null}
 
-      <section className="fp-card">
-        <div className="fp-card-head">
-          <p className="fp-eyebrow">Advance FL-0001</p>
-          <span className="fp-pill">{stageLabel[state.stage]}</span>
-        </div>
-
-        {state.stage === "requested" ? (
-          <>
-            <h2>We’re looking at it now</h2>
-            <p>
-              We’re checking {state.business.name} and the {money(state.request.incoming)} coming from {state.request.payer}.
-            </p>
-            <ol className="fp-timeline">
-              {["Application received", "Business checked", "Incoming payment checked", "Decision"].map((label, index) => (
-                <li key={label}>
-                  <span>{index < 2 ? "Done" : index + 1}</span>
-                  <div>
-                    {label}
-                    <small>{index < 2 ? "Complete" : index === 2 ? "Happening now" : "Next"}</small>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <div className="fp-actions fp-actions-start">
-              <button className="fp-button" onClick={() => move("offered", "Approved. Your offer is ready.")}>
-                Skip the wait and see the decision
-              </button>
-              <button className="fp-secondary" onClick={() => move("information", "Float asked for one more thing.")}>
-                Show an information request
-              </button>
-            </div>
-            <small className="fp-hint">Demo steps. A real decision takes hours, not a click.</small>
-          </>
-        ) : null}
-
-        {state.stage === "information" ? (
-          <>
-            <h2>We need one more thing</h2>
-            <p>{state.note}</p>
-            <Field label="Your reply" error={errors.reply}>
-              <textarea
-                rows={4}
-                value={reply}
-                onChange={(event) => setReply(event.target.value)}
-                placeholder="Tell us what you’re sending, or explain the gap."
-              />
-            </Field>
-            <Upload
-              label="Anything else that helps"
-              files={state.evidence}
-              sample={sampleEvidence}
-              onChange={(evidence) => setState((prev) => ({ ...prev, evidence }))}
-            />
-            <div className="fp-actions fp-actions-start">
-              <button
-                className="fp-button"
-                onClick={() => {
-                  if (!reply.trim()) {
-                    setErrors({ reply: "Write a line so we know what changed." });
-                    return;
-                  }
-                  setState((prev) => respond(prev, reply.trim()));
-                  setReply("");
-                  setErrors({});
-                  setToast("Sent. Your application is back with us.");
-                }}
-              >
-                Send reply
-              </button>
-            </div>
-            <small className="fp-hint">Your advance isn’t cancelled. It goes back in the queue.</small>
-          </>
-        ) : null}
-
-        {state.stage === "rejected" ? (
-          <>
-            <h2>We couldn’t approve this one</h2>
-            <p>{state.note}</p>
-            <p>
-              Nothing about this stops you applying again with a different payment. It doesn’t touch your record, and we
-              didn’t keep anything you’ll have to redo.
-            </p>
-            <div className="fp-actions fp-actions-start">
-              <button
-                className="fp-button"
-                onClick={() => {
-                  setState((prev) => startAgain(prev));
-                  setToast("Start a new request. Your business details are still here.");
-                }}
-              >
-                Try a different payment
-              </button>
-            </div>
-          </>
-        ) : null}
-
-        {state.stage === "offered" ? (
-          <>
-            <h2>Approved. Here are the terms.</h2>
-            <p>Nothing moves until you accept.</p>
-            <Rows
-              items={[
-                ["You receive", <strong key="a">{money(state.request.amount)}</strong>],
-                ["Fee", `${terms.rate}% · ${money(terms.fee)}`],
-                ["You repay", money(terms.total)],
-                ["Repayment date", date(addDays(isoDate(), state.request.days))],
-              ]}
-            />
-            <div className="fp-actions fp-actions-start">
-              <button className="fp-button" onClick={() => move("accepted", "Accepted. We’re sending the funds.")}>
-                Accept these terms
-              </button>
-              <button className="fp-secondary" onClick={() => move("declined", "Offer declined. Nothing was charged.")}>
-                Decline
-              </button>
-            </div>
-          </>
-        ) : null}
-
-        {state.stage === "accepted" ? (
-          <>
-            <h2>Accepted. The money is on its way.</h2>
-            <p>
-              We’re sending {money(state.request.amount)} to your wallet. Repayment of {money(terms.total)} is due{" "}
-              {state.request.days} days after it lands, not from today.
-            </p>
-            <Rows
-              items={[
-                ["You accepted", `${money(state.request.amount)} at ${terms.rate}%`],
-                ["You’ll repay", money(terms.total)],
-                ["Waiting on", "Float to release the funds"],
-              ]}
-            />
-            <button className="fp-button" onClick={() => move("active", `${money(state.request.amount)} is in your wallet.`)}>
-              Skip the wait and receive the funds
-            </button>
-            <small className="fp-hint">Demo step. No money moves.</small>
-          </>
-        ) : null}
-
-        {state.stage === "declined" ? (
-          <>
-            <h2>You declined this offer</h2>
-            <p>Nothing was charged and nothing was recorded against you. The terms are here if you change your mind.</p>
-            <Rows
-              items={[
-                ["Offered", money(state.request.amount)],
-                ["At", `${terms.rate}% · ${money(terms.fee)}`],
-              ]}
-            />
-            <div className="fp-actions fp-actions-start">
-              <button className="fp-button" onClick={() => move("offered", "The offer is open again.")}>
-                Look at it again
-              </button>
-              <button
-                className="fp-secondary"
-                onClick={() => {
-                  setState((prev) => startAgain(prev));
-                  setToast("Start a new request. Your business details are still here.");
-                }}
-              >
-                Ask for something different
-              </button>
-            </div>
-          </>
-        ) : null}
-
-        {state.stage === "active" ? (
-          <>
-            <h2>Your advance is running</h2>
-            <p>
-              {money(terms.total)} is due on {date(due)}, {Math.max(daysBetween(isoDate(), due), 0)} days from now.
-            </p>
-            <Rows
-              items={[
-                ["Advanced", money(state.request.amount)],
-                ["Fee", money(terms.fee)],
-                ["Total due", <strong key="t">{money(terms.total)}</strong>],
-                ["Covered by", `${money(state.request.incoming)} from ${state.request.payer}`],
-              ]}
-            />
-            <button className="fp-button" onClick={() => move("repaid", "Repaid. That’s one more on your record.")}>
-              Repay {money(terms.total)}
-            </button>
-            <small className="fp-hint">Demo step. No money moves.</small>
-          </>
-        ) : null}
-
-        {state.stage === "repaid" ? (
-          <>
-            <h2>Repaid, and your record grew</h2>
-            <p>
-              You repaid {money(terms.total)} and kept working through the gap. That’s {record}{" "}
-              {record === 1 ? "repayment" : "repayments"} on your record now.
-            </p>
-            <Rows
-              items={[
-                ["You paid this time", `${terms.rate}% · ${money(terms.fee)}`],
-                ["Your next advance", `${live.rate}% · ${money(live.fee)}`],
-                ["Collateral margin earned", `${BASE_MARGIN - marginRequired(record)} points`],
-              ]}
-            />
-            <div className="fp-actions fp-actions-start">
-              <button
-                className="fp-button"
-                onClick={() => {
-                  setState((prev) => startAgain(prev));
-                  setToast("Fresh request. Your record carries over.");
-                }}
-              >
-                Request another advance
-              </button>
-              <button className="fp-secondary" onClick={() => setTab("Your record")}>
-                See your record
-              </button>
-            </div>
-          </>
-        ) : null}
-      </section>
+      <AdvanceCard
+        view={view}
+        handlers={handlers}
+        uploadSlot={
+          <Upload
+            label="Anything else that helps"
+            files={state.evidence}
+            sample={sampleEvidence}
+            onChange={(evidence) => setState((prev) => ({ ...prev, evidence }))}
+          />
+        }
+      />
 
       {funded ? (
         <section className="fp-card">

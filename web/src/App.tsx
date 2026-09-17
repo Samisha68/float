@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { DashboardOverview } from "./DashboardOverview";
 import DemoApp from "./DemoApp";
 import Prototype from "./Prototype";
+import LiveWorkspace from "./LiveWorkspace";
 import Onboarding from "./Onboarding";
 import ApplicationForm from "./InvoiceApplication";
 import { api, Application, User } from "./lib/api";
@@ -23,17 +24,30 @@ const message = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
 
 export default function App() {
-  if (!new URLSearchParams(location.search).has("mode") || new URLSearchParams(location.search).get("mode") === "prototype")
-    return <Prototype />;
-  if (new URLSearchParams(location.search).get("mode") === "devnet")
+  const mode = new URLSearchParams(location.search).get("mode");
+  /* The offline journey, for showing Float without an account. */
+  if (mode === "prototype") return <Prototype />;
+  if (mode === "devnet")
     return (
       <Suspense fallback={<p className="app-main">Opening devnet test…</p>}>
         <DevnetApp />
       </Suspense>
     );
-  if (new URLSearchParams(location.search).get("mode") === "demo")
+  if (mode === "demo")
     return <DemoApp />;
-  return <Onboarding>{(user, onLogout) => <Workspace key={user.id} initialUser={user} onLogout={onLogout}/>}</Onboarding>;
+  /* Borrowers get the journey; operators keep the review queue until it is
+     ported. `?mode=queue` opens the queue for anyone who is allowed one. */
+  return (
+    <Onboarding>
+      {(user, onLogout) =>
+        user.role === "borrower" && mode !== "queue" ? (
+          <LiveWorkspace key={user.id} user={user} onSignOut={onLogout} />
+        ) : (
+          <Workspace key={user.id} initialUser={user} onLogout={onLogout} />
+        )
+      }
+    </Onboarding>
+  );
 }
 function Workspace({initialUser, onLogout}: {initialUser: User; onLogout:()=>Promise<void>}) {
   const [user, setUser] = useState<User | null>(initialUser);
