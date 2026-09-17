@@ -53,6 +53,16 @@ Accounts, documents, sessions, and applications persist in `web/data/float.sqlit
 
 The private application workflow and on-chain tests are deliberately separate until server-side transaction reconciliation and application-to-wallet binding are implemented. Never mark an application paid based only on a client-submitted signature.
 
+## Pricing and the repayment record
+
+`server/pricing.mjs` is the only place an advance is priced. It holds the published fee by term, the discount a repayment record earns (0.1 points off the fee and 5 off the collateral margin per repayment, capped at six, and never below half the published rate), and the count of a borrower's repaid applications. **The numbers are provisional placeholders, not a credit decision.**
+
+- `GET /api/quote?amount=&days=` prices an advance for the signed-in borrower. Pricing never happens in the browser, so a client cannot quote itself a rate its record has not earned.
+- The operator listing carries `borrowerRecord` and `suggestedFeeBps` on each application. The operator still sets the fee; the suggestion is a starting point and always sits under the program's 1,000 bps cap.
+- The borrower's own listing carries neither field.
+
+`src/lib/prototype.ts` keeps a copy of this maths so the prototype runs offline. `server/pricing.test.mjs` prices every combination through both and fails if they ever disagree, because a borrower shown a price the server will not honour is worse than no price at all.
+
 ## Verification
 
 ```sh

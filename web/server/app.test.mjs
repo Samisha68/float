@@ -256,3 +256,54 @@ test("borrower may decline an offer and operator may reject with a reason", asyn
     "Rejected",
   );
 });
+
+test("pricing comes from the server, and a repayment record lowers it", async (t) => {
+  const { borrower, operator, stranger, client } = await setup(t);
+
+  // A signed-out caller cannot price anything.
+  assert.equal((await client()("/quote?amount=2500&days=30")).status, 401);
+
+  const first = await borrower("/quote?amount=2500&days=30");
+  assert.equal(first.status, 200);
+  assert.equal(first.data.repayments, 0);
+  assert.equal(first.data.rate, 1.8);
+  assert.equal(first.data.fee, 45);
+  assert.equal(first.data.total, 2545);
+  assert.equal(first.data.marginRequired, 150);
+  assert.equal(first.data.provisional, true);
+
+  // Bad inputs are refused rather than guessed at.
+  assert.equal((await borrower("/quote?amount=0&days=30")).status, 400);
+  assert.equal((await borrower("/quote?amount=2500&days=90")).status, 400);
+  assert.equal((await borrower("/quote?amount=2500")).status, 400);
+
+  // Take an advance all the way through repayment.
+  const id = (await borrower("/applications", application)).data.id;
+  await operator(`/applications/${id}/offer`, { feeBps: 180, note: "Reviewed" });
+  await borrower(`/applications/${id}/accept`, {});
+  await operator(`/applications/${id}/fund`, {});
+  assert.equal((await borrower(`/applications/${id}/repay`, {})).data.status, "Repaid");
+
+  const second = await borrower("/quote?amount=2500&days=30");
+  assert.equal(second.data.repayments, 1);
+  assert.equal(second.data.rate, 1.7, "one repayment earns 0.1 points");
+  assert.equal(second.data.marginRequired, 145);
+
+  // One borrower's record never prices another's advance.
+  assert.equal((await stranger("/quote?amount=2500&days=30")).data.repayments, 0);
+});
+
+test("the operator queue carries the borrower's record and a suggested fee", async (t) => {
+  const { borrower, operator } = await setup(t);
+  const id = (await borrower("/applications", application)).data.id;
+
+  const queued = (await operator("/applications")).data.find((a) => a.id === id);
+  assert.equal(queued.borrowerRecord, 0);
+  assert.equal(queued.suggestedFeeBps, 180);
+  assert.ok(queued.suggestedFeeBps <= 1000, "never suggests a fee the program would reject");
+
+  // The borrower's own view stays free of operator-side hints.
+  const own = (await borrower("/applications")).data.find((a) => a.id === id);
+  assert.equal(own.borrowerRecord, undefined);
+  assert.equal(own.suggestedFeeBps, undefined);
+});

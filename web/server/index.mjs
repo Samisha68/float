@@ -7,6 +7,7 @@ import { openStore, passwordHash, passwordMatches } from "./store.mjs";
 
 import { redeemInvite } from "./invites.mjs";
 import { verifyPrivyIdentity } from "./privy.mjs";
+import { marginRequired, quote, repaymentsFor, suggestedFeeBps } from "./pricing.mjs";
 
 const DAY = 86400000;
 const fail = (status, message) => {
@@ -244,6 +245,26 @@ export function createApp({
         db.prepare("UPDATE users SET name=? WHERE id=?").run(name,user.id);
         return send(200,{user:publicUser({...user,name})});
       }
+      /* What an advance would cost this borrower today. Pricing is computed
+         here and never in the browser, so a client cannot quote itself a
+         better rate than its record has earned. */
+      if (path === "/api/quote" && req.method === "GET") {
+        if (!user) fail(401, "Sign in to see your price.");
+        const params = new URL(req.url, "http://localhost").searchParams;
+        const amount = money(Number(params.get("amount")), "Advance", 5000);
+        const days = Number(params.get("days"));
+        if (!Number.isInteger(days) || days < 1 || days > 60)
+          fail(400, "Choose a term between 1 and 60 days.");
+        const repayments = repaymentsFor(db, user.id);
+        return send(200, {
+          ...quote(amount, days, repayments),
+          amount,
+          days,
+          repayments,
+          marginRequired: marginRequired(repayments),
+          provisional: true,
+        });
+      }
       if (path === "/api/applications" && req.method === "GET") {
         const rows =
           user.role === "operator"
@@ -251,7 +272,15 @@ export function createApp({
             : db
                 .prepare("SELECT data FROM applications WHERE user_id=?")
                 .all(user.id);
-        return send(200, rows.map((r) => JSON.parse(r.data)).reverse());
+        const applications = rows.map((r) => JSON.parse(r.data)).reverse();
+        /* The queue shows what the borrower has repaid and what that record
+           suggests as a fee. The operator still decides. */
+        if (user.role === "operator")
+          for (const a of applications) {
+            a.borrowerRecord = repaymentsFor(db, a.userId);
+            a.suggestedFeeBps = suggestedFeeBps(a.termDays, a.borrowerRecord);
+          }
+        return send(200, applications);
       }
       if (path === "/api/applications" && req.method === "POST") {
         if (user.role !== "borrower")
