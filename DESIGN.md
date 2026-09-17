@@ -19,6 +19,8 @@ Source originals live in the separate Float_website project. Do not edit that pr
 
 Black (#000000) and white (#FFFFFF). Neutral grey (#737373) and its opacities may be used for secondary text, borders, and surfaces. No blue or other chromatic accent colors. Carry all statuses in explicit words, never red/amber/green.
 
+The complete frontend prototype must match the current website: onboarding, KYB, funding, pricing, application review, wallet, repayment, and demo controls all share this monochrome theme. Use black and white for primary actions and selection states. Native form controls use a black accent; do not introduce colored success, warning, error, or focus states. Preserve the existing neutral tones only for supporting hierarchy.
+
 ## Typography and layout
 
 Retain Poppins for the interface, weights 400–700. Use the supplied artwork for the logo. Tabular figures for money and dates. Spacing follows the 4px base scale; corners 6, 10, or 14px. Mobile layouts must remain usable without horizontal scrolling.

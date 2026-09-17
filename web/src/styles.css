@@ -6,6 +6,8 @@
    advance status is carried by words, weight and position instead.        */
 
 @theme {
+  /* Remove Tailwind's default chromatic palette: Float is monochrome. */
+  --color-*: initial;
   --color-white: #ffffff;
   --color-black: #000000;
   --color-ink: #000000;
@@ -31,11 +33,18 @@ body,
 }
 
 body {
+  color-scheme: light;
+  accent-color: var(--color-black);
   background: var(--color-white);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-black);
+  color: var(--color-white);
 }
 
 /* Money and dates use tabular figures everywhere. */

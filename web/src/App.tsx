@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { DashboardOverview } from "./DashboardOverview";
 import DemoApp from "./DemoApp";
+import Prototype from "./Prototype";
 import Onboarding from "./Onboarding";
 import ApplicationForm from "./InvoiceApplication";
 import { api, Application, User } from "./lib/api";
@@ -22,6 +23,8 @@ const message = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
 
 export default function App() {
+  if (!new URLSearchParams(location.search).has("mode") || new URLSearchParams(location.search).get("mode") === "prototype")
+    return <Prototype />;
   if (new URLSearchParams(location.search).get("mode") === "devnet")
     return (
       <Suspense fallback={<p className="app-main">Opening devnet test…</p>}>

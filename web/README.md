@@ -88,3 +88,19 @@ From `web/`, generate a code with `npm run invite`. By default it expires after 
 The welcome page uses Anime.js to move the same invoice into its workspace position as the user progresses. The chosen sample amount carries through to the application details. It respects reduced motion, offers keyboard-accessible controls, and uses native dialogs. MotionSites’ TrueEarth composition informed the split scene; the implementation and artwork are original. Sample data is labeled locally, with no full-width preview banner. The signed-in borrower dashboard uses actual saved applications to show next actions, outstanding test repayments, and progress. No preview action saves an application.
 
 Verified 6 September: ten API tests pass, including invitation expiry, reuse, concurrent redemption, rejected identities, and returning users. Desktop/mobile preview navigation and keyboard slider checks pass. Live Privy sign-in and embedded-wallet creation still require credentials and have not been verified end to end.
+
+## Borrower journey prototype
+
+Run `npm run dev:web` and open `/` (or `/?mode=prototype`). It needs no backend. The connected workflows stay at `/?mode=live`, `/?mode=demo` and `/?mode=devnet`.
+
+The journey: Start an application → your business (four fields and one document) → what's coming in, plus how much and how long → check and send → see the decision → accept → repay. Four tabs only: Dashboard, Your record, Business, Settings.
+
+`Stage` in `src/lib/prototype.ts` mirrors the API's application statuses one for one, so wiring is a rename: `draft` (not yet created), `requested`, `information`, `rejected`, `offered`, `accepted`, `declined`, `active`, `repaid`. Every one of them has a screen. A borrower can answer an information request, which puts the application back in the queue exactly as the server's `respond` action does; a rejection always carries the operator's reason; accepting waits on Float to release funds rather than funding itself. Settings can jump to any stage.
+
+**A record buys price, not size.** Each repayment takes 0.1 points off the fee and 5 points off the collateral margin, up to six repayments, and the fee discount never exceeds half the published rate. The advance itself stays capped by the incoming payment. `Your record` states this on screen, and Settings can load a business with a full record to show the difference.
+
+The price agreed at approval is locked in `state.agreed`, so a finished advance keeps costing what it cost even after later repayments make the next one cheaper.
+
+Pricing, validation and stage transitions live in `src/lib/prototype.ts`; the UI is `src/Prototype.tsx` with scoped monochrome styles in `src/prototype.css`. Documents are never uploaded, only their names are kept, and everything is stored under `float-prototype-v2` in the browser.
+
+Check it with `node --test src/lib/prototype.test.mjs` (12 tests, Node 24) and `npm run build`.
