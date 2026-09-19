@@ -3,6 +3,7 @@ import { DashboardOverview } from "./DashboardOverview";
 import DemoApp from "./DemoApp";
 import Prototype from "./Prototype";
 import LiveWorkspace from "./LiveWorkspace";
+import OperatorQueue from "./OperatorQueue";
 import Onboarding from "./Onboarding";
 import ApplicationForm from "./InvoiceApplication";
 import { api, Application, User } from "./lib/api";
@@ -35,15 +36,17 @@ export default function App() {
     );
   if (mode === "demo")
     return <DemoApp />;
-  /* Borrowers get the journey; operators keep the review queue until it is
-     ported. `?mode=queue` opens the queue for anyone who is allowed one. */
+  /* Borrowers get the journey, operators get the review queue. The previous
+     workspace stays at ?mode=legacy until nothing needs it. */
   return (
     <Onboarding>
       {(user, onLogout) =>
-        user.role === "borrower" && mode !== "queue" ? (
-          <LiveWorkspace key={user.id} user={user} onSignOut={onLogout} />
-        ) : (
+        mode === "legacy" ? (
           <Workspace key={user.id} initialUser={user} onLogout={onLogout} />
+        ) : user.role === "operator" ? (
+          <OperatorQueue key={user.id} user={user} onSignOut={onLogout} />
+        ) : (
+          <LiveWorkspace key={user.id} user={user} onSignOut={onLogout} />
         )
       }
     </Onboarding>

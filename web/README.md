@@ -63,7 +63,11 @@ Signed-in borrowers get the journey from the prototype, driven by the API. Scree
 
 The live form caps an advance at **$5,000**, which is what the API accepts and the program's first-tier ceiling. Its price comes from `/api/quote` and is labelled indicative until Float makes an offer.
 
-Routing: `/` is the signed-in workspace (borrowers get the new one, operators keep the review queue until it is ported, and `?mode=queue` opens the queue), `?mode=prototype` is the offline journey, `?mode=demo` and `?mode=devnet` are unchanged.
+`OperatorQueue.tsx` is the review screen. One application at a time, with everything a decision needs on it: what is owed to the business, what it is asking for, how many advances it has repaid with Float, the invoice itself, and the fee its record suggests. Offer, ask for more, or decline; every decision requires a message, because the business reads it. Funding is recorded after acceptance.
+
+Routing: `/` is the signed-in workspace, borrowers get the journey and operators the queue. `?mode=prototype` is the offline journey, `?mode=legacy` is the previous workspace, and `?mode=demo` and `?mode=devnet` are unchanged.
+
+Anchor and web3.js load only when a borrower signs something. They need a `Buffer` polyfill the browser does not have, and they are 150 kB nobody should download to read a dashboard.
 
 ## Pricing and the repayment record
 

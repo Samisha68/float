@@ -30,6 +30,10 @@ export interface Application {
   events: { at: number; actor: string; message: string }[];
   /* Set by the server, never by the browser. */
   wallet?: string | null;
+  /* Operator view only: what this borrower has repaid, and the fee that record
+     suggests. The operator still decides. */
+  borrowerRecord?: number;
+  suggestedFeeBps?: number;
   settlement?: "simulation" | "onchain";
   chain?: {
     advance?: string;
