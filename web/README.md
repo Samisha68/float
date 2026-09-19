@@ -93,7 +93,16 @@ Check 4 stops a borrower presenting someone else's repayment; check 5 stops them
 
 Verification is injected as `getTransaction`, so tests drive it with crafted transactions and a paid RPC can replace the public devnet endpoint later through `FLOAT_RPC`.
 
-**What is still missing:** nothing yet creates the advance on chain, so a borrower has no signature to submit. `request_advance` and `repay_advance` are signed by the borrower's wallet and `approve_and_disburse` by the underwriter; wiring those is the next step. Until then this path is proven by tests, not by a real devnet repayment.
+### The borrower signs, Float checks
+
+`request_advance` and `repay_advance` are signed in the browser by the borrower's own Privy wallet. Float never holds signing power over a borrower's wallet, which is what lets the record honestly be called theirs.
+
+- `lib/walletSigner.ts` presents a Privy wallet as the signer Anchor expects; Privy signs raw bytes, so each transaction is serialised, signed and rebuilt.
+- `lib/chainActions.ts` has the two actions: put the advance on Solana, and repay it.
+- `POST /applications/:id/anchor` records an advance the borrower created, after checking the `AdvanceRequested` event belongs to their business PDA and matches the amount and term Float agreed to fund. Once bound, **only that advance can settle the application**, which closes the gap where any repayment of the right size would do.
+- Nothing about the payer, the invoice or the business name goes on chain.
+
+**What is proven and what is not.** Every server-side check is covered by tests that drive real and forged transactions: wrong business, wrong amount, wrong term, wrong advance, unsigned, failed, missing, and replayed signatures. The browser signing path is **written but unverified**: Privy needs a configured app ID, and a real devnet run needs test USDC, devnet SOL for fees and an initialised treasury. Disbursement is still simulated, because `approve_and_disburse` is signed by Float's underwriter key against a funded treasury, and neither is set up yet.
 
 ## Verification
 

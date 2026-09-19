@@ -3,6 +3,7 @@
    version exactly; only the source of truth changes. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { AdvanceCard, type AdvanceHandlers, type AdvanceView } from "./journey/AdvanceCard";
 import { Field, Rows, Upload } from "./journey/parts";
 import { invoiceFile, type User } from "./lib/api";
@@ -17,6 +18,7 @@ import {
   type Application,
   type Quote,
 } from "./lib/live";
+import { putAdvanceOnChain, repayOnChain } from "./lib/chainActions";
 import { BASE_MARGIN, TERMS, date, isoDate, marginRequired, money, stageLabel } from "./lib/prototype";
 import "./prototype.css";
 
@@ -66,6 +68,9 @@ export default function LiveWorkspace({ user, onSignOut }: { user: User; onSignO
   const [earned, setEarned] = useState<Quote | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const working = useRef(false);
+  const { wallets } = useWallets();
+  const { signTransaction } = useSignTransaction();
+  const wallet = wallets[0] ?? null;
 
   const refresh = useCallback(async () => setApplications(await listApplications()), []);
 
@@ -208,6 +213,58 @@ export default function LiveWorkspace({ user, onSignOut }: { user: User; onSignO
       }
     : null;
 
+  /* Everything on chain is signed here, by the borrower's own wallet, and then
+     proved to the server. Devnet only, and it says so. */
+  const onChainAdvance = open?.chain?.advance ?? null;
+  const settledOnChain = open?.settlement === "onchain";
+
+  const chainPanel =
+    !open || !wallet || !["accepted", "active", "repaid"].includes(advance?.stage ?? "") ? null : (
+      <div className="fp-chain">
+        <p className="fp-eyebrow">On Solana · devnet</p>
+        {onChainAdvance ? (
+          <p className="fp-note">
+            Advance <code>{onChainAdvance.slice(0, 8)}…</code>
+            {settledOnChain ? " · repayment confirmed on chain" : " · not yet repaid on chain"}
+          </p>
+        ) : (
+          <p className="fp-note">This advance is not on Solana yet.</p>
+        )}
+        <div className="fp-actions fp-actions-start">
+          {!onChainAdvance && advance?.stage !== "repaid" ? (
+            <button
+              className="fp-secondary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await putAdvanceOnChain(open, advance!, wallet, signTransaction);
+                }, "Your advance is on Solana. You signed it, we only checked it.")
+              }
+            >
+              {busy ? "Waiting for your wallet…" : "Put this advance on Solana"}
+            </button>
+          ) : null}
+          {onChainAdvance && advance?.stage === "active" ? (
+            <button
+              className="fp-secondary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await repayOnChain(open, onChainAdvance, wallet, signTransaction);
+                }, "Repayment confirmed on Solana.")
+              }
+            >
+              {busy ? "Waiting for your wallet…" : `Repay ${money(advance.total)} on Solana`}
+            </button>
+          ) : null}
+        </div>
+        <small className="fp-hint">
+          You sign with your own wallet. Float never signs for you, and checks every transaction before recording it.
+          Devnet test USDC and devnet SOL for fees are needed.
+        </small>
+      </div>
+    );
+
   const form = (
     <div className="fp-grid">
       <form
@@ -348,7 +405,11 @@ export default function LiveWorkspace({ user, onSignOut }: { user: User; onSignO
     </div>
   );
 
-  const dashboard = showingForm ? form : <AdvanceCard view={view!} handlers={handlers} busy={busy} />;
+  const dashboard = showingForm ? (
+    form
+  ) : (
+    <AdvanceCard view={view!} handlers={handlers} busy={busy} footerSlot={chainPanel} />
+  );
 
   const recordTab = (
     <>

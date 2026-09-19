@@ -8,7 +8,7 @@ import { openStore, passwordHash, passwordMatches } from "./store.mjs";
 import { redeemInvite } from "./invites.mjs";
 import { verifyPrivyIdentity } from "./privy.mjs";
 import { marginRequired, quote, repaymentsFor, suggestedFeeBps } from "./pricing.mjs";
-import { isValidSignature, transactionReader, verifyRepayment } from "./chain.mjs";
+import { isValidSignature, transactionReader, verifyAdvanceRequested, verifyRepayment } from "./chain.mjs";
 
 const DAY = 86400000;
 const fail = (status, message) => {
@@ -380,7 +380,7 @@ export function createApp({
         return send(201, a);
       }
       const match = path.match(
-        /^\/api\/applications\/([a-z0-9-]+)\/(document|offer|accept|decline|fund|repay|reject|information|respond)$/,
+        /^\/api\/applications\/([a-z0-9-]+)\/(document|offer|accept|decline|fund|repay|reject|information|respond|anchor)$/,
       );
       if (match) {
         const row = db
@@ -422,6 +422,7 @@ export function createApp({
           information: ["Requested"],
           respond: ["NeedsInformation"],
           accept: ["Offered"],
+          anchor: ["Accepted", "Active"],
           decline: ["Offered"],
           fund: ["Accepted"],
           repay: ["Active"],
@@ -477,6 +478,45 @@ export function createApp({
             "Float",
             "Simulated disbursement recorded. No money moved.",
           );
+        } else if (action === "anchor") {
+          /* The borrower created the advance on Solana with their own wallet.
+             We check it is theirs and matches what Float agreed to fund, then
+             remember which advance this application is, so only that advance
+             can settle it later. */
+          if (!isValidSignature(body.signature))
+            fail(400, "That does not look like a Solana transaction signature.");
+          if (a.chain?.advance) fail(409, "This advance is already on Solana.");
+          if (!a.wallet)
+            a.wallet =
+              db.prepare("SELECT wallet FROM privy_identities WHERE user_id=?").get(a.userId)?.wallet ?? null;
+          if (!a.wallet) fail(400, "Link a Solana wallet to this account before putting an advance on chain.");
+          if (db.prepare("SELECT application_id FROM settlements WHERE signature=?").get(body.signature))
+            fail(409, "That transaction has already been recorded.");
+          const created = verifyAdvanceRequested({
+            transaction: await getTransaction(body.signature),
+            wallet: a.wallet,
+            amount: a.amount,
+            termDays: a.termDays,
+          });
+          a.chain = { ...(a.chain ?? {}), advance: created.advance, requestSignature: body.signature };
+          record(a, "Business", `Advance created on Solana as ${created.advance}.`);
+          db.exec("BEGIN");
+          try {
+            db.prepare("INSERT INTO settlements VALUES(?,?,?,?,?,?)").run(
+              body.signature,
+              a.id,
+              "request",
+              created.advance,
+              created.slot,
+              Date.now(),
+            );
+            save(a);
+            db.exec("COMMIT");
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+          return send(200, a);
         } else if (action === "repay") {
           /* With a signature this is reconciliation: the chain decides. Without
              one it stays a simulated entry in the pilot workspace. */
@@ -497,11 +537,13 @@ export function createApp({
               transaction: await getTransaction(body.signature),
               wallet: a.wallet,
               totalDue: a.totalDue,
+              advance: a.chain?.advance ?? null,
             });
             a.status = "Repaid";
             a.repaidAt = Date.now();
             a.settlement = "onchain";
             a.chain = {
+              ...(a.chain ?? {}),
               signature: body.signature,
               advance: proof.advance,
               slot: proof.slot,

@@ -26,6 +26,7 @@ export const eventDiscriminator = (name) =>
   createHash("sha256").update(`event:${name}`).digest().subarray(0, 8);
 
 const REPAID = eventDiscriminator("AdvanceRepaid");
+const REQUESTED = eventDiscriminator("AdvanceRequested");
 
 /* AdvanceRepaid { advance: Pubkey, business: Pubkey, total_due: u64,
    was_late: bool, advances_repaid: u32, total_volume_repaid: u64 } */
@@ -48,6 +49,26 @@ export function decodeAdvanceRepaid(base64) {
   };
 }
 
+/* AdvanceRequested { advance: Pubkey, business: Pubkey, amount: u64,
+   expected_inflow: u64, term_days: u16 } */
+export function decodeAdvanceRequested(base64) {
+  let bytes;
+  try {
+    bytes = Buffer.from(base64, "base64");
+  } catch {
+    return null;
+  }
+  if (bytes.length < 8 + 32 + 32 + 8 + 8 + 2) return null;
+  if (!bytes.subarray(0, 8).equals(REQUESTED)) return null;
+  return {
+    advance: new PublicKey(bytes.subarray(8, 40)).toBase58(),
+    business: new PublicKey(bytes.subarray(40, 72)).toBase58(),
+    amount: bytes.readBigUInt64LE(72),
+    expectedInflow: bytes.readBigUInt64LE(80),
+    termDays: bytes.readUInt16LE(88),
+  };
+}
+
 export const businessPda = (wallet, programId = PROGRAM_ID) =>
   PublicKey.findProgramAddressSync(
     [BUSINESS_SEED, new PublicKey(wallet).toBytes()],
@@ -62,11 +83,48 @@ const signers = (transaction) =>
     .filter((key) => key.signer)
     .map((key) => (typeof key.pubkey === "string" ? key.pubkey : String(key.pubkey)));
 
-const eventsIn = (transaction) =>
+const eventsIn = (transaction, decode) =>
   (transaction?.meta?.logMessages ?? [])
     .filter((line) => line.startsWith("Program data: "))
-    .map((line) => decodeAdvanceRepaid(line.slice("Program data: ".length)))
+    .map((line) => decode(line.slice("Program data: ".length)))
     .filter(Boolean);
+
+const refuse = (message) => {
+  throw Object.assign(new Error(message), { status: 400 });
+};
+
+/* Shared by both verifications: a transaction only counts if it exists, it
+   worked, and the wallet on this Float account signed it. */
+function usable(transaction, wallet) {
+  if (!transaction)
+    refuse("We could not find that transaction on Solana yet. Wait for it to confirm and try again.");
+  if (transaction.meta?.err) refuse("That transaction failed on Solana, so nothing happened on chain.");
+  if (!signers(transaction).includes(wallet))
+    refuse("That transaction was not signed by the wallet on this account.");
+}
+
+/* The borrower puts the advance on chain themselves, so the server checks that
+   what they created matches what Float agreed to fund. */
+export function verifyAdvanceRequested({ transaction, wallet, amount, termDays, programId = PROGRAM_ID }) {
+  usable(transaction, wallet);
+  const requests = eventsIn(transaction, decodeAdvanceRequested);
+  if (!requests.length) refuse("That transaction did not create a Float advance.");
+
+  const expectedBusiness = businessPda(wallet, programId);
+  const mine = requests.filter((event) => event.business === expectedBusiness);
+  if (!mine.length) refuse("That advance belongs to a different business.");
+
+  const match = mine.find((event) => event.amount === toBaseUnits(amount) && event.termDays === termDays);
+  if (!match) refuse("The advance on Solana does not match the amount and term of this application.");
+
+  return {
+    advance: match.advance,
+    business: match.business,
+    amount: Number(match.amount) / 10 ** USDC_DECIMALS,
+    termDays: match.termDays,
+    slot: transaction.slot ?? null,
+  };
+}
 
 export function isValidSignature(signature) {
   return typeof signature === "string" && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(signature);
@@ -74,33 +132,23 @@ export function isValidSignature(signature) {
 
 /* Returns what the chain says happened, or throws a message a borrower can
    act on. The caller decides what to do with it. */
-export function verifyRepayment({ transaction, wallet, totalDue, programId = PROGRAM_ID }) {
-  if (!transaction)
-    throw Object.assign(
-      new Error("We could not find that transaction on Solana yet. Wait for it to confirm and try again."),
-      { status: 400 },
-    );
-  if (transaction.meta?.err)
-    throw Object.assign(new Error("That transaction failed on Solana, so nothing was repaid."), { status: 400 });
-  if (!signers(transaction).includes(wallet))
-    throw Object.assign(new Error("That transaction was not signed by the wallet on this account."), { status: 400 });
+export function verifyRepayment({ transaction, wallet, totalDue, advance = null, programId = PROGRAM_ID }) {
+  usable(transaction, wallet);
 
-  const repayments = eventsIn(transaction);
-  if (!repayments.length)
-    throw Object.assign(new Error("That transaction did not repay a Float advance."), { status: 400 });
+  const repayments = eventsIn(transaction, decodeAdvanceRepaid);
+  if (!repayments.length) refuse("That transaction did not repay a Float advance.");
 
   const expectedBusiness = businessPda(wallet, programId);
   const mine = repayments.filter((event) => event.business === expectedBusiness);
-  if (!mine.length)
-    throw Object.assign(new Error("That repayment belongs to a different business."), { status: 400 });
+  if (!mine.length) refuse("That repayment belongs to a different business.");
 
-  const expected = toBaseUnits(totalDue);
-  const match = mine.find((event) => event.totalDue === expected);
-  if (!match)
-    throw Object.assign(
-      new Error("The amount repaid on Solana does not match what this advance owes."),
-      { status: 400 },
-    );
+  /* Once the application knows which advance it is, only that one settles it.
+     Otherwise the amount is all we have to go on. */
+  const forThisAdvance = advance ? mine.filter((event) => event.advance === advance) : mine;
+  if (!forThisAdvance.length) refuse("That repayment was for a different advance.");
+
+  const match = forThisAdvance.find((event) => event.totalDue === toBaseUnits(totalDue));
+  if (!match) refuse("The amount repaid on Solana does not match what this advance owes.");
 
   return {
     advance: match.advance,

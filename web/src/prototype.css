@@ -788,3 +788,17 @@
     transition: none !important;
   }
 }
+
+/* The Solana panel in the live workspace. Quiet by design: it sits under the
+   advance, not above it, because most of the journey has nothing to do with
+   the chain. */
+.fp-chain {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.fp-chain code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}

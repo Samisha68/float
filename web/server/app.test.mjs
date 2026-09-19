@@ -317,6 +317,7 @@ const SIGNATURE = "4".repeat(88);
 const OTHER_SIGNATURE = "5".repeat(88);
 
 function repaidTransaction({ wallet, totalDue, advance = Keypair.generate().publicKey.toBase58() }) {
+  // `advance` lets a test present a repayment of a different advance.
   const body = Buffer.alloc(85);
   new PublicKey(advance).toBuffer().copy(body, 0);
   new PublicKey(businessPda(wallet)).toBuffer().copy(body, 32);
@@ -460,4 +461,65 @@ test("an advance applied for before a wallet was linked can still settle", async
   assert.equal(repaid.status, 200);
   assert.equal(repaid.data.settlement, "onchain");
   assert.equal(repaid.data.wallet, wallet, "the verified wallet is kept on the application");
+});
+
+function requestedTransaction({ wallet, amount, termDays, advance }) {
+  const body = Buffer.alloc(32 + 32 + 8 + 8 + 2);
+  new PublicKey(advance).toBuffer().copy(body, 0);
+  new PublicKey(businessPda(wallet)).toBuffer().copy(body, 32);
+  body.writeBigUInt64LE(BigInt(Math.round(amount * 1e6)), 64);
+  body.writeBigUInt64LE(BigInt(Math.round(amount * 2 * 1e6)), 72);
+  body.writeUInt16LE(termDays, 80);
+  const discriminator = createHash("sha256").update("event:AdvanceRequested").digest().subarray(0, 8);
+  return {
+    slot: 500,
+    meta: { err: null, logMessages: [`Program data: ${Buffer.concat([discriminator, body]).toString("base64")}`] },
+    transaction: { message: { accountKeys: [{ pubkey: wallet, signer: true }] } },
+  };
+}
+
+test("the borrower puts the advance on chain, and only that advance can settle it", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const ours = Keypair.generate().publicKey.toBase58();
+  const theirs = Keypair.generate().publicKey.toBase58();
+  const ANCHOR_SIGNATURE = "6".repeat(88);
+
+  const chain = async (signature) =>
+    signature === ANCHOR_SIGNATURE
+      ? requestedTransaction({ wallet, amount: 2500, termDays: 30, advance: ours })
+      : // A repayment of a different advance, for the same money, by the same wallet.
+        repaidTransaction({ wallet, totalDue: 2545, advance: theirs });
+
+  const { borrower, id } = await fundedAdvance(t, { wallet, chain });
+
+  const anchored = await borrower(`/applications/${id}/anchor`, { signature: ANCHOR_SIGNATURE });
+  assert.equal(anchored.status, 200);
+  assert.equal(anchored.data.chain.advance, ours);
+  assert.match(anchored.data.events.at(-1).message, /created on Solana/);
+
+  // Recording it twice is refused rather than quietly overwriting.
+  assert.equal((await borrower(`/applications/${id}/anchor`, { signature: ANCHOR_SIGNATURE })).status, 409);
+
+  // A repayment of some other advance no longer settles this application.
+  const wrong = await borrower(`/applications/${id}/repay`, { signature: "7".repeat(88) });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.data.error, /for a different advance/);
+  assert.equal((await borrower("/applications")).data[0].status, "Active");
+});
+
+test("an advance on chain must match the amount and term Float agreed to", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const advance = Keypair.generate().publicKey.toBase58();
+  for (const [label, transaction, expected] of [
+    ["a different amount", { amount: 90, termDays: 30 }, /does not match the amount and term/],
+    ["a different term", { amount: 2500, termDays: 7 }, /does not match the amount and term/],
+  ]) {
+    const { borrower, id } = await fundedAdvance(t, {
+      wallet,
+      chain: async () => requestedTransaction({ wallet, advance, ...transaction }),
+    });
+    const attempt = await borrower(`/applications/${id}/anchor`, { signature: "8".repeat(88) });
+    assert.equal(attempt.status, 400, label);
+    assert.match(attempt.data.error, expected, label);
+  }
 });

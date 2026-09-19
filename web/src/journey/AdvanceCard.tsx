@@ -54,11 +54,14 @@ export function AdvanceCard({
   handlers,
   busy = false,
   uploadSlot,
+  footerSlot,
 }: {
   view: AdvanceView;
   handlers: AdvanceHandlers;
   busy?: boolean;
   uploadSlot?: ReactNode;
+  /* The live workspace puts the Solana panel here; the prototype has none. */
+  footerSlot?: ReactNode;
 }) {
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState("");
@@ -287,6 +290,8 @@ export function AdvanceCard({
           </div>
         </>
       ) : null}
+
+      {footerSlot}
     </section>
   );
 }

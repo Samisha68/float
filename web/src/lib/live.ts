@@ -41,3 +41,11 @@ export type BorrowerAction = "respond" | "accept" | "decline" | "repay";
 
 export const act = (id: string, action: BorrowerAction, body: Record<string, unknown> = {}) =>
   api<Application>(`/applications/${id}/${action}`, body);
+
+/* Recording an advance the borrower created on Solana. The server checks the
+   transaction before it believes any of it. */
+export const anchorAdvance = (id: string, signature: string) =>
+  api<Application>(`/applications/${id}/anchor`, { signature });
+
+export const settleAdvance = (id: string, signature: string) =>
+  api<Application>(`/applications/${id}/repay`, { signature });
