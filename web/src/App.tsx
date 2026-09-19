@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { DashboardOverview } from "./DashboardOverview";
 import DemoApp from "./DemoApp";
+import Prototype from "./Prototype";
+import LiveWorkspace from "./LiveWorkspace";
+import OperatorQueue from "./OperatorQueue";
 import Onboarding from "./Onboarding";
 import ApplicationForm from "./InvoiceApplication";
 import { api, Application, User } from "./lib/api";
@@ -22,15 +25,32 @@ const message = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
 
 export default function App() {
-  if (new URLSearchParams(location.search).get("mode") === "devnet")
+  const mode = new URLSearchParams(location.search).get("mode");
+  /* The offline journey, for showing Float without an account. */
+  if (mode === "prototype") return <Prototype />;
+  if (mode === "devnet")
     return (
       <Suspense fallback={<p className="app-main">Opening devnet test…</p>}>
         <DevnetApp />
       </Suspense>
     );
-  if (new URLSearchParams(location.search).get("mode") === "demo")
+  if (mode === "demo")
     return <DemoApp />;
-  return <Onboarding>{(user, onLogout) => <Workspace key={user.id} initialUser={user} onLogout={onLogout}/>}</Onboarding>;
+  /* Borrowers get the journey, operators get the review queue. The previous
+     workspace stays at ?mode=legacy until nothing needs it. */
+  return (
+    <Onboarding>
+      {(user, onLogout) =>
+        mode === "legacy" ? (
+          <Workspace key={user.id} initialUser={user} onLogout={onLogout} />
+        ) : user.role === "operator" ? (
+          <OperatorQueue key={user.id} user={user} onSignOut={onLogout} />
+        ) : (
+          <LiveWorkspace key={user.id} user={user} onSignOut={onLogout} />
+        )
+      }
+    </Onboarding>
+  );
 }
 function Workspace({initialUser, onLogout}: {initialUser: User; onLogout:()=>Promise<void>}) {
   const [user, setUser] = useState<User | null>(initialUser);

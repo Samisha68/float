@@ -7,6 +7,8 @@ import { openStore, passwordHash, passwordMatches } from "./store.mjs";
 
 import { redeemInvite } from "./invites.mjs";
 import { verifyPrivyIdentity } from "./privy.mjs";
+import { marginRequired, quote, repaymentsFor, suggestedFeeBps } from "./pricing.mjs";
+import { isValidSignature, transactionReader, verifyAdvanceRequested, verifyRepayment } from "./chain.mjs";
 
 const DAY = 86400000;
 const fail = (status, message) => {
@@ -37,6 +39,7 @@ const publicUser = ({ id, email, name, role }) => ({ id, email, name, role });
 export function createApp({
   db = openStore(),
   verifyIdentity = verifyPrivyIdentity,
+  getTransaction = transactionReader(),
   allowLegacyAuth = false,
   origin = process.env.FLOAT_ORIGIN || "http://localhost:5173",
   secure = process.env.NODE_ENV === "production",
@@ -244,6 +247,26 @@ export function createApp({
         db.prepare("UPDATE users SET name=? WHERE id=?").run(name,user.id);
         return send(200,{user:publicUser({...user,name})});
       }
+      /* What an advance would cost this borrower today. Pricing is computed
+         here and never in the browser, so a client cannot quote itself a
+         better rate than its record has earned. */
+      if (path === "/api/quote" && req.method === "GET") {
+        if (!user) fail(401, "Sign in to see your price.");
+        const params = new URL(req.url, "http://localhost").searchParams;
+        const amount = money(Number(params.get("amount")), "Advance", 5000);
+        const days = Number(params.get("days"));
+        if (!Number.isInteger(days) || days < 1 || days > 60)
+          fail(400, "Choose a term between 1 and 60 days.");
+        const repayments = repaymentsFor(db, user.id);
+        return send(200, {
+          ...quote(amount, days, repayments),
+          amount,
+          days,
+          repayments,
+          marginRequired: marginRequired(repayments),
+          provisional: true,
+        });
+      }
       if (path === "/api/applications" && req.method === "GET") {
         const rows =
           user.role === "operator"
@@ -251,16 +274,30 @@ export function createApp({
             : db
                 .prepare("SELECT data FROM applications WHERE user_id=?")
                 .all(user.id);
-        return send(200, rows.map((r) => JSON.parse(r.data)).reverse());
+        const applications = rows.map((r) => JSON.parse(r.data)).reverse();
+        /* The queue shows what the borrower has repaid and what that record
+           suggests as a fee. The operator still decides. */
+        if (user.role === "operator")
+          for (const a of applications) {
+            a.borrowerRecord = repaymentsFor(db, a.userId);
+            a.suggestedFeeBps = suggestedFeeBps(a.termDays, a.borrowerRecord);
+          }
+        return send(200, applications);
       }
       if (path === "/api/applications" && req.method === "POST") {
         if (user.role !== "borrower")
           fail(403, "Only businesses can submit applications.");
         if (!user.name.trim()) fail(400, "Add your business name before applying.");
+        /* The wallet comes from the identity Privy verified, never from the
+           browser: a client-supplied address is not proof of anything. */
+        const bound = db
+          .prepare("SELECT wallet FROM privy_identities WHERE user_id=?")
+          .get(user.id);
         const a = {
           id: randomUUID(),
           userId: user.id,
           businessName: user.name,
+          wallet: bound?.wallet ?? null,
           payer: text(body.payer, "Customer"),
           invoiceNumber: text(body.invoiceNumber, "Invoice reference", 100),
           amount: money(body.amount, "Advance", 5000),
@@ -343,7 +380,7 @@ export function createApp({
         return send(201, a);
       }
       const match = path.match(
-        /^\/api\/applications\/([a-z0-9-]+)\/(document|offer|accept|decline|fund|repay|reject|information|respond)$/,
+        /^\/api\/applications\/([a-z0-9-]+)\/(document|offer|accept|decline|fund|repay|reject|information|respond|anchor)$/,
       );
       if (match) {
         const row = db
@@ -385,6 +422,7 @@ export function createApp({
           information: ["Requested"],
           respond: ["NeedsInformation"],
           accept: ["Offered"],
+          anchor: ["Accepted", "Active"],
           decline: ["Offered"],
           fund: ["Accepted"],
           repay: ["Active"],
@@ -440,7 +478,100 @@ export function createApp({
             "Float",
             "Simulated disbursement recorded. No money moved.",
           );
+        } else if (action === "anchor") {
+          /* The borrower created the advance on Solana with their own wallet.
+             We check it is theirs and matches what Float agreed to fund, then
+             remember which advance this application is, so only that advance
+             can settle it later. */
+          if (!isValidSignature(body.signature))
+            fail(400, "That does not look like a Solana transaction signature.");
+          if (a.chain?.advance) fail(409, "This advance is already on Solana.");
+          if (!a.wallet)
+            a.wallet =
+              db.prepare("SELECT wallet FROM privy_identities WHERE user_id=?").get(a.userId)?.wallet ?? null;
+          if (!a.wallet) fail(400, "Link a Solana wallet to this account before putting an advance on chain.");
+          if (db.prepare("SELECT application_id FROM settlements WHERE signature=?").get(body.signature))
+            fail(409, "That transaction has already been recorded.");
+          const created = verifyAdvanceRequested({
+            transaction: await getTransaction(body.signature),
+            wallet: a.wallet,
+            amount: a.amount,
+            termDays: a.termDays,
+          });
+          a.chain = { ...(a.chain ?? {}), advance: created.advance, requestSignature: body.signature };
+          record(a, "Business", `Advance created on Solana as ${created.advance}.`);
+          db.exec("BEGIN");
+          try {
+            db.prepare("INSERT INTO settlements VALUES(?,?,?,?,?,?)").run(
+              body.signature,
+              a.id,
+              "request",
+              created.advance,
+              created.slot,
+              Date.now(),
+            );
+            save(a);
+            db.exec("COMMIT");
+          } catch (error) {
+            db.exec("ROLLBACK");
+            throw error;
+          }
+          return send(200, a);
         } else if (action === "repay") {
+          /* With a signature this is reconciliation: the chain decides. Without
+             one it stays a simulated entry in the pilot workspace. */
+          if (body.signature !== undefined) {
+            if (!isValidSignature(body.signature))
+              fail(400, "That does not look like a Solana transaction signature.");
+            /* Applications created before this account linked a wallet have
+               none stored. Fall back to the wallet Privy has verified for this
+               identity now, and keep it, so an older advance can still settle. */
+            if (!a.wallet)
+              a.wallet =
+                db.prepare("SELECT wallet FROM privy_identities WHERE user_id=?").get(a.userId)?.wallet ?? null;
+            if (!a.wallet)
+              fail(400, "Link a Solana wallet to this account before settling an advance on chain.");
+            if (db.prepare("SELECT application_id FROM settlements WHERE signature=?").get(body.signature))
+              fail(409, "That transaction has already been used to settle an advance.");
+            const proof = verifyRepayment({
+              transaction: await getTransaction(body.signature),
+              wallet: a.wallet,
+              totalDue: a.totalDue,
+              advance: a.chain?.advance ?? null,
+            });
+            a.status = "Repaid";
+            a.repaidAt = Date.now();
+            a.settlement = "onchain";
+            a.chain = {
+              ...(a.chain ?? {}),
+              signature: body.signature,
+              advance: proof.advance,
+              slot: proof.slot,
+              wasLate: proof.wasLate,
+            };
+            record(
+              a,
+              "Business",
+              `Repayment of ${proof.totalDue} USDC confirmed on Solana in transaction ${body.signature}.`,
+            );
+            db.exec("BEGIN");
+            try {
+              db.prepare("INSERT INTO settlements VALUES(?,?,?,?,?,?)").run(
+                body.signature,
+                a.id,
+                "repayment",
+                proof.advance,
+                proof.slot,
+                Date.now(),
+              );
+              save(a);
+              db.exec("COMMIT");
+            } catch (error) {
+              db.exec("ROLLBACK");
+              throw error;
+            }
+            return send(200, a);
+          }
           a.status = "Repaid";
           a.repaidAt = Date.now();
           record(

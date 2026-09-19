@@ -51,7 +51,62 @@ Accounts, documents, sessions, and applications persist in `web/data/float.sqlit
 - Existing program backup: `data/backups/float-devnet-20260906.so` (ignored by Git).
 - Approval requires the treasury's underwriter wallet; repayment requires the borrower's wallet. Borrower repayment needs principal **plus fee** in test USDC and devnet SOL for fees.
 
-The private application workflow and on-chain tests are deliberately separate until server-side transaction reconciliation and application-to-wallet binding are implemented. Never mark an application paid based only on a client-submitted signature.
+The private application workflow and the on-chain test flow are still separate, but the server no longer takes a borrower's word for a repayment. See "Reconciliation" below.
+
+## The borrower workspace
+
+Signed-in borrowers get the journey from the prototype, driven by the API. Screens live in `src/journey/`, so the prototype and the live workspace share one set of words and cannot drift apart:
+
+- `journey/AdvanceCard.tsx` draws an advance at any stage. A button appears only when its handler is passed, so demo actions exist in the prototype and real actions in the workspace, and neither shows an action the other invented.
+- `lib/journey.ts` maps applications onto the journey (pure, unit-tested); `lib/live.ts` makes the calls.
+- `LiveWorkspace.tsx` is the signed-in workspace. Every action re-reads the list from the server rather than patching state locally, because the server decides what state an application is in.
+
+The live form caps an advance at **$5,000**, which is what the API accepts and the program's first-tier ceiling. Its price comes from `/api/quote` and is labelled indicative until Float makes an offer.
+
+`OperatorQueue.tsx` is the review screen. One application at a time, with everything a decision needs on it: what is owed to the business, what it is asking for, how many advances it has repaid with Float, the invoice itself, and the fee its record suggests. Offer, ask for more, or decline; every decision requires a message, because the business reads it. Funding is recorded after acceptance.
+
+Routing: `/` is the signed-in workspace, borrowers get the journey and operators the queue. `?mode=prototype` is the offline journey, `?mode=legacy` is the previous workspace, and `?mode=demo` and `?mode=devnet` are unchanged.
+
+Anchor and web3.js load only when a borrower signs something. They need a `Buffer` polyfill the browser does not have, and they are 150 kB nobody should download to read a dashboard.
+
+## Pricing and the repayment record
+
+`server/pricing.mjs` is the only place an advance is priced. It holds the published fee by term, the discount a repayment record earns (0.1 points off the fee and 5 off the collateral margin per repayment, capped at six, and never below half the published rate), and the count of a borrower's repaid applications. **The numbers are provisional placeholders, not a credit decision.**
+
+- `GET /api/quote?amount=&days=` prices an advance for the signed-in borrower. Pricing never happens in the browser, so a client cannot quote itself a rate its record has not earned.
+- The operator listing carries `borrowerRecord` and `suggestedFeeBps` on each application. The operator still sets the fee; the suggestion is a starting point and always sits under the program's 1,000 bps cap.
+- The borrower's own listing carries neither field.
+
+`src/lib/prototype.ts` keeps a copy of this maths so the prototype runs offline. `server/pricing.test.mjs` prices every combination through both and fails if they ever disagree, because a borrower shown a price the server will not honour is worse than no price at all.
+
+## Reconciliation
+
+`POST /api/applications/:id/repay` accepts an optional Solana transaction `signature`. With one, the chain decides whether the advance is settled; without one it stays a simulated entry in the pilot workspace.
+
+`server/chain.mjs` verifies, in order:
+
+1. the transaction exists, is confirmed, and did not fail
+2. the wallet bound to the Float account signed it
+3. the program emitted `AdvanceRepaid` inside it
+4. the event's `business` account matches the PDA derived from that wallet
+5. the amount repaid on chain equals what the application owes
+
+Check 4 stops a borrower presenting someone else's repayment; check 5 stops them presenting a smaller repayment of their own. The event is decoded straight from the `Program data:` log using the layout in the program's IDL (discriminator `b9bf885ae05f01c5`). A verified signature is written to `settlements`, whose primary key is the signature, so one transaction can never settle two advances.
+
+**The wallet is never taken from the browser.** It is read from `privy_identities`, the record of the identity Privy verified, and bound to the application when it is created. An application created before a wallet was linked falls back to the identity's wallet at settlement time and keeps it.
+
+Verification is injected as `getTransaction`, so tests drive it with crafted transactions and a paid RPC can replace the public devnet endpoint later through `FLOAT_RPC`.
+
+### The borrower signs, Float checks
+
+`request_advance` and `repay_advance` are signed in the browser by the borrower's own Privy wallet. Float never holds signing power over a borrower's wallet, which is what lets the record honestly be called theirs.
+
+- `lib/walletSigner.ts` presents a Privy wallet as the signer Anchor expects; Privy signs raw bytes, so each transaction is serialised, signed and rebuilt.
+- `lib/chainActions.ts` has the two actions: put the advance on Solana, and repay it.
+- `POST /applications/:id/anchor` records an advance the borrower created, after checking the `AdvanceRequested` event belongs to their business PDA and matches the amount and term Float agreed to fund. Once bound, **only that advance can settle the application**, which closes the gap where any repayment of the right size would do.
+- Nothing about the payer, the invoice or the business name goes on chain.
+
+**What is proven and what is not.** Every server-side check is covered by tests that drive real and forged transactions: wrong business, wrong amount, wrong term, wrong advance, unsigned, failed, missing, and replayed signatures. The browser signing path is **written but unverified**: Privy needs a configured app ID, and a real devnet run needs test USDC, devnet SOL for fees and an initialised treasury. Disbursement is still simulated, because `approve_and_disburse` is signed by Float's underwriter key against a funded treasury, and neither is set up yet.
 
 ## Verification
 
@@ -60,7 +115,7 @@ npm test
 npm run build
 ```
 
-API tests cover private document access, borrower/operator permissions, persistent storage, invalid requests, duplicate invoices, acceptance before funding, information requests, rejection/decline, and duplicate state transitions.
+API tests cover reconciliation (verified settlement, replayed signatures, wrong amounts, unsigned and missing transactions, client-supplied wallets), private document access, borrower/operator permissions, persistent storage, invalid requests, duplicate invoices, acceptance before funding, information requests, rejection/decline, and duplicate state transitions.
 
 ## Deployment configuration
 
@@ -88,3 +143,19 @@ From `web/`, generate a code with `npm run invite`. By default it expires after 
 The welcome page uses Anime.js to move the same invoice into its workspace position as the user progresses. The chosen sample amount carries through to the application details. It respects reduced motion, offers keyboard-accessible controls, and uses native dialogs. MotionSites’ TrueEarth composition informed the split scene; the implementation and artwork are original. Sample data is labeled locally, with no full-width preview banner. The signed-in borrower dashboard uses actual saved applications to show next actions, outstanding test repayments, and progress. No preview action saves an application.
 
 Verified 6 September: ten API tests pass, including invitation expiry, reuse, concurrent redemption, rejected identities, and returning users. Desktop/mobile preview navigation and keyboard slider checks pass. Live Privy sign-in and embedded-wallet creation still require credentials and have not been verified end to end.
+
+## Borrower journey prototype
+
+Run `npm run dev:web` and open `/` (or `/?mode=prototype`). It needs no backend. The connected workflows stay at `/?mode=live`, `/?mode=demo` and `/?mode=devnet`.
+
+The journey: Start an application → your business (four fields and one document) → what's coming in, plus how much and how long → check and send → see the decision → accept → repay. Four tabs only: Dashboard, Your record, Business, Settings.
+
+`Stage` in `src/lib/prototype.ts` mirrors the API's application statuses one for one, so wiring is a rename: `draft` (not yet created), `requested`, `information`, `rejected`, `offered`, `accepted`, `declined`, `active`, `repaid`. Every one of them has a screen. A borrower can answer an information request, which puts the application back in the queue exactly as the server's `respond` action does; a rejection always carries the operator's reason; accepting waits on Float to release funds rather than funding itself. Settings can jump to any stage.
+
+**A record buys price, not size.** Each repayment takes 0.1 points off the fee and 5 points off the collateral margin, up to six repayments, and the fee discount never exceeds half the published rate. The advance itself stays capped by the incoming payment. `Your record` states this on screen, and Settings can load a business with a full record to show the difference.
+
+The price agreed at approval is locked in `state.agreed`, so a finished advance keeps costing what it cost even after later repayments make the next one cheaper.
+
+Pricing, validation and stage transitions live in `src/lib/prototype.ts`; the UI is `src/Prototype.tsx` with scoped monochrome styles in `src/prototype.css`. Documents are never uploaded, only their names are kept, and everything is stored under `float-prototype-v2` in the browser.
+
+Check it with `node --test src/lib/prototype.test.mjs` (12 tests, Node 24) and `npm run build`.

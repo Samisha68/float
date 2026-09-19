@@ -28,6 +28,20 @@ export interface Application {
   dueAt: number | null;
   documentName: string;
   events: { at: number; actor: string; message: string }[];
+  /* Set by the server, never by the browser. */
+  wallet?: string | null;
+  /* Operator view only: what this borrower has repaid, and the fee that record
+     suggests. The operator still decides. */
+  borrowerRecord?: number;
+  suggestedFeeBps?: number;
+  settlement?: "simulation" | "onchain";
+  chain?: {
+    advance?: string;
+    requestSignature?: string;
+    signature?: string;
+    slot?: number | null;
+    wasLate?: boolean;
+  };
 }
 export class ApiError extends Error {
   constructor(message: string, public code?: string) { super(message); this.name="ApiError"; }

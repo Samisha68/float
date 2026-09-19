@@ -19,9 +19,9 @@ const application = {
     base64: Buffer.from("%PDF-1.4\nTest invoice").toString("base64"),
   },
 };
-async function setup(t, path = ":memory:") {
+async function setup(t, path = ":memory:", getTransaction) {
   const db = openStore(path);
-  const server = createApp({ db, origin, allowLegacyAuth: true });
+  const server = createApp({ db, origin, allowLegacyAuth: true, getTransaction });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(async () => {
     await new Promise((resolve) => server.close(resolve));
@@ -255,4 +255,271 @@ test("borrower may decline an offer and operator may reject with a reason", asyn
     ).data.status,
     "Rejected",
   );
+});
+
+test("pricing comes from the server, and a repayment record lowers it", async (t) => {
+  const { borrower, operator, stranger, client } = await setup(t);
+
+  // A signed-out caller cannot price anything.
+  assert.equal((await client()("/quote?amount=2500&days=30")).status, 401);
+
+  const first = await borrower("/quote?amount=2500&days=30");
+  assert.equal(first.status, 200);
+  assert.equal(first.data.repayments, 0);
+  assert.equal(first.data.rate, 1.8);
+  assert.equal(first.data.fee, 45);
+  assert.equal(first.data.total, 2545);
+  assert.equal(first.data.marginRequired, 150);
+  assert.equal(first.data.provisional, true);
+
+  // Bad inputs are refused rather than guessed at.
+  assert.equal((await borrower("/quote?amount=0&days=30")).status, 400);
+  assert.equal((await borrower("/quote?amount=2500&days=90")).status, 400);
+  assert.equal((await borrower("/quote?amount=2500")).status, 400);
+
+  // Take an advance all the way through repayment.
+  const id = (await borrower("/applications", application)).data.id;
+  await operator(`/applications/${id}/offer`, { feeBps: 180, note: "Reviewed" });
+  await borrower(`/applications/${id}/accept`, {});
+  await operator(`/applications/${id}/fund`, {});
+  assert.equal((await borrower(`/applications/${id}/repay`, {})).data.status, "Repaid");
+
+  const second = await borrower("/quote?amount=2500&days=30");
+  assert.equal(second.data.repayments, 1);
+  assert.equal(second.data.rate, 1.7, "one repayment earns 0.1 points");
+  assert.equal(second.data.marginRequired, 145);
+
+  // One borrower's record never prices another's advance.
+  assert.equal((await stranger("/quote?amount=2500&days=30")).data.repayments, 0);
+});
+
+test("the operator queue carries the borrower's record and a suggested fee", async (t) => {
+  const { borrower, operator } = await setup(t);
+  const id = (await borrower("/applications", application)).data.id;
+
+  const queued = (await operator("/applications")).data.find((a) => a.id === id);
+  assert.equal(queued.borrowerRecord, 0);
+  assert.equal(queued.suggestedFeeBps, 180);
+  assert.ok(queued.suggestedFeeBps <= 1000, "never suggests a fee the program would reject");
+
+  // The borrower's own view stays free of operator-side hints.
+  const own = (await borrower("/applications")).data.find((a) => a.id === id);
+  assert.equal(own.borrowerRecord, undefined);
+  assert.equal(own.suggestedFeeBps, undefined);
+});
+
+/* Reconciliation: an application is only marked paid when the chain agrees. */
+import { createHash } from "node:crypto";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { PROGRAM_ID, businessPda } from "./chain.mjs";
+
+const SIGNATURE = "4".repeat(88);
+const OTHER_SIGNATURE = "5".repeat(88);
+
+function repaidTransaction({ wallet, totalDue, advance = Keypair.generate().publicKey.toBase58() }) {
+  // `advance` lets a test present a repayment of a different advance.
+  const body = Buffer.alloc(85);
+  new PublicKey(advance).toBuffer().copy(body, 0);
+  new PublicKey(businessPda(wallet)).toBuffer().copy(body, 32);
+  body.writeBigUInt64LE(BigInt(Math.round(totalDue * 1e6)), 64);
+  body.writeUInt32LE(1, 73);
+  const discriminator = createHash("sha256").update("event:AdvanceRepaid").digest().subarray(0, 8);
+  return {
+    slot: 999,
+    meta: {
+      err: null,
+      logMessages: [
+        `Program ${PROGRAM_ID} invoke [1]`,
+        `Program data: ${Buffer.concat([discriminator, body]).toString("base64")}`,
+      ],
+    },
+    transaction: { message: { accountKeys: [{ pubkey: wallet, signer: true }] } },
+  };
+}
+
+async function fundedAdvance(t, { wallet, chain, bindAfter = false } = {}) {
+  const context = await setup(t, ":memory:", chain);
+  const { db, borrower, operator } = context;
+  const bind = () =>
+    db.prepare("INSERT INTO privy_identities VALUES(?,?,?)").run(
+      `did:privy:${wallet.slice(0, 8)}`,
+      db.prepare("SELECT id FROM users WHERE email='borrower@example.com'").get().id,
+      wallet,
+    );
+  if (wallet && !bindAfter) bind();
+  const id = (await borrower("/applications", application)).data.id;
+  if (wallet && bindAfter) bind();
+  await operator(`/applications/${id}/offer`, { feeBps: 180, note: "Reviewed" });
+  await borrower(`/applications/${id}/accept`, {});
+  await operator(`/applications/${id}/fund`, {});
+  return { ...context, id };
+}
+
+test("a repayment claimed with a signature is checked against the chain", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  // The wallet must be bound before the application is created, as it is in the real flow.
+  const context = await setup(t, ":memory:", async () => repaidTransaction({ wallet, totalDue: 2545 }));
+  const { db, borrower, operator } = context;
+  db.prepare("INSERT INTO privy_identities VALUES(?,?,?)").run(
+    "did:privy:test",
+    db.prepare("SELECT id FROM users WHERE email='borrower@example.com'").get().id,
+    wallet,
+  );
+  const id = (await borrower("/applications", application)).data.id;
+  assert.equal((await borrower("/applications")).data[0].wallet, wallet, "the application is bound to the wallet");
+
+  await operator(`/applications/${id}/offer`, { feeBps: 180, note: "Reviewed" });
+  await borrower(`/applications/${id}/accept`, {});
+  await operator(`/applications/${id}/fund`, {});
+
+  const repaid = await borrower(`/applications/${id}/repay`, { signature: SIGNATURE });
+  assert.equal(repaid.status, 200);
+  assert.equal(repaid.data.status, "Repaid");
+  assert.equal(repaid.data.settlement, "onchain");
+  assert.equal(repaid.data.chain.signature, SIGNATURE);
+  assert.equal(repaid.data.chain.slot, 999);
+  assert.match(repaid.data.events.at(-1).message, /confirmed on Solana/);
+});
+
+test("one transaction cannot settle two advances", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const context = await setup(t, ":memory:", async () => repaidTransaction({ wallet, totalDue: 2545 }));
+  const { db, borrower, operator } = context;
+  db.prepare("INSERT INTO privy_identities VALUES(?,?,?)").run(
+    "did:privy:test",
+    db.prepare("SELECT id FROM users WHERE email='borrower@example.com'").get().id,
+    wallet,
+  );
+  const ids = [];
+  for (const invoiceNumber of ["INV-A", "INV-B"]) {
+    const id = (await borrower("/applications", { ...application, invoiceNumber })).data.id;
+    await operator(`/applications/${id}/offer`, { feeBps: 180, note: "Reviewed" });
+    await borrower(`/applications/${id}/accept`, {});
+    await operator(`/applications/${id}/fund`, {});
+    ids.push(id);
+  }
+  assert.equal((await borrower(`/applications/${ids[0]}/repay`, { signature: SIGNATURE })).status, 200);
+  const replay = await borrower(`/applications/${ids[1]}/repay`, { signature: SIGNATURE });
+  assert.equal(replay.status, 409);
+  assert.match(replay.data.error, /already been used/);
+  assert.equal((await borrower("/applications")).data.find((a) => a.id === ids[1]).status, "Active");
+});
+
+test("an unverifiable claim leaves the advance outstanding", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const stranger = Keypair.generate().publicKey.toBase58();
+  for (const [label, chain, expected] of [
+    ["no such transaction", async () => null, /could not find that transaction/],
+    ["someone else's repayment", async () => repaidTransaction({ wallet: stranger, totalDue: 2545 }), /not signed by the wallet/],
+    ["the wrong amount", async () => repaidTransaction({ wallet, totalDue: 10 }), /does not match what this advance owes/],
+  ]) {
+    const { borrower, id } = await fundedAdvance(t, { wallet, chain });
+    const attempt = await borrower(`/applications/${id}/repay`, { signature: OTHER_SIGNATURE });
+    assert.equal(attempt.status, 400, label);
+    assert.match(attempt.data.error, expected, label);
+    assert.equal((await borrower("/applications")).data[0].status, "Active", `${label}: still owed`);
+  }
+});
+
+test("a malformed signature never reaches the chain, and an unbound wallet is refused", async (t) => {
+  let called = 0;
+  const { borrower, id } = await fundedAdvance(t, {
+    chain: async () => {
+      called++;
+      return null;
+    },
+  });
+  const bad = await borrower(`/applications/${id}/repay`, { signature: "nope" });
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /does not look like a Solana transaction signature/);
+  assert.equal(called, 0, "a malformed signature is rejected before any RPC call");
+
+  const unbound = await borrower(`/applications/${id}/repay`, { signature: SIGNATURE });
+  assert.equal(unbound.status, 400);
+  assert.match(unbound.data.error, /Link a Solana wallet/, "no wallet anywhere on the account, so nothing can be checked");
+});
+
+test("a browser cannot bind its own wallet to an application", async (t) => {
+  const { borrower } = await setup(t);
+  const claimed = Keypair.generate().publicKey.toBase58();
+  const created = await borrower("/applications", { ...application, wallet: claimed });
+  assert.equal(created.status, 201);
+  assert.equal(created.data.wallet, null, "a wallet supplied by the browser is ignored");
+});
+
+test("an advance applied for before a wallet was linked can still settle", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const { borrower, id } = await fundedAdvance(t, {
+    wallet,
+    bindAfter: true,
+    chain: async () => repaidTransaction({ wallet, totalDue: 2545 }),
+  });
+  const before = (await borrower("/applications")).data[0];
+  assert.equal(before.wallet, null, "nothing was bound when this application was created");
+
+  const repaid = await borrower(`/applications/${id}/repay`, { signature: SIGNATURE });
+  assert.equal(repaid.status, 200);
+  assert.equal(repaid.data.settlement, "onchain");
+  assert.equal(repaid.data.wallet, wallet, "the verified wallet is kept on the application");
+});
+
+function requestedTransaction({ wallet, amount, termDays, advance }) {
+  const body = Buffer.alloc(32 + 32 + 8 + 8 + 2);
+  new PublicKey(advance).toBuffer().copy(body, 0);
+  new PublicKey(businessPda(wallet)).toBuffer().copy(body, 32);
+  body.writeBigUInt64LE(BigInt(Math.round(amount * 1e6)), 64);
+  body.writeBigUInt64LE(BigInt(Math.round(amount * 2 * 1e6)), 72);
+  body.writeUInt16LE(termDays, 80);
+  const discriminator = createHash("sha256").update("event:AdvanceRequested").digest().subarray(0, 8);
+  return {
+    slot: 500,
+    meta: { err: null, logMessages: [`Program data: ${Buffer.concat([discriminator, body]).toString("base64")}`] },
+    transaction: { message: { accountKeys: [{ pubkey: wallet, signer: true }] } },
+  };
+}
+
+test("the borrower puts the advance on chain, and only that advance can settle it", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const ours = Keypair.generate().publicKey.toBase58();
+  const theirs = Keypair.generate().publicKey.toBase58();
+  const ANCHOR_SIGNATURE = "6".repeat(88);
+
+  const chain = async (signature) =>
+    signature === ANCHOR_SIGNATURE
+      ? requestedTransaction({ wallet, amount: 2500, termDays: 30, advance: ours })
+      : // A repayment of a different advance, for the same money, by the same wallet.
+        repaidTransaction({ wallet, totalDue: 2545, advance: theirs });
+
+  const { borrower, id } = await fundedAdvance(t, { wallet, chain });
+
+  const anchored = await borrower(`/applications/${id}/anchor`, { signature: ANCHOR_SIGNATURE });
+  assert.equal(anchored.status, 200);
+  assert.equal(anchored.data.chain.advance, ours);
+  assert.match(anchored.data.events.at(-1).message, /created on Solana/);
+
+  // Recording it twice is refused rather than quietly overwriting.
+  assert.equal((await borrower(`/applications/${id}/anchor`, { signature: ANCHOR_SIGNATURE })).status, 409);
+
+  // A repayment of some other advance no longer settles this application.
+  const wrong = await borrower(`/applications/${id}/repay`, { signature: "7".repeat(88) });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.data.error, /for a different advance/);
+  assert.equal((await borrower("/applications")).data[0].status, "Active");
+});
+
+test("an advance on chain must match the amount and term Float agreed to", async (t) => {
+  const wallet = Keypair.generate().publicKey.toBase58();
+  const advance = Keypair.generate().publicKey.toBase58();
+  for (const [label, transaction, expected] of [
+    ["a different amount", { amount: 90, termDays: 30 }, /does not match the amount and term/],
+    ["a different term", { amount: 2500, termDays: 7 }, /does not match the amount and term/],
+  ]) {
+    const { borrower, id } = await fundedAdvance(t, {
+      wallet,
+      chain: async () => requestedTransaction({ wallet, advance, ...transaction }),
+    });
+    const attempt = await borrower(`/applications/${id}/anchor`, { signature: "8".repeat(88) });
+    assert.equal(attempt.status, 400, label);
+    assert.match(attempt.data.error, expected, label);
+  }
 });

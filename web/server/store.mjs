@@ -26,6 +26,9 @@ export function openStore(
     CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS documents (application_id TEXT PRIMARY KEY REFERENCES applications(id), name TEXT NOT NULL, mime TEXT NOT NULL, content BLOB NOT NULL);
+    -- A confirmed on-chain settlement. The signature is the primary key, so one
+    -- transaction can never settle two advances.
+    CREATE TABLE IF NOT EXISTS settlements (signature TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id), kind TEXT NOT NULL, advance TEXT, slot INTEGER, confirmed_at INTEGER NOT NULL);
   `);
   return db;
 }
