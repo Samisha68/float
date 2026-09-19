@@ -51,7 +51,7 @@ Accounts, documents, sessions, and applications persist in `web/data/float.sqlit
 - Existing program backup: `data/backups/float-devnet-20260906.so` (ignored by Git).
 - Approval requires the treasury's underwriter wallet; repayment requires the borrower's wallet. Borrower repayment needs principal **plus fee** in test USDC and devnet SOL for fees.
 
-The private application workflow and on-chain tests are deliberately separate until server-side transaction reconciliation and application-to-wallet binding are implemented. Never mark an application paid based only on a client-submitted signature.
+The private application workflow and the on-chain test flow are still separate, but the server no longer takes a borrower's word for a repayment. See "Reconciliation" below.
 
 ## The borrower workspace
 
@@ -75,6 +75,26 @@ Routing: `/` is the signed-in workspace (borrowers get the new one, operators ke
 
 `src/lib/prototype.ts` keeps a copy of this maths so the prototype runs offline. `server/pricing.test.mjs` prices every combination through both and fails if they ever disagree, because a borrower shown a price the server will not honour is worse than no price at all.
 
+## Reconciliation
+
+`POST /api/applications/:id/repay` accepts an optional Solana transaction `signature`. With one, the chain decides whether the advance is settled; without one it stays a simulated entry in the pilot workspace.
+
+`server/chain.mjs` verifies, in order:
+
+1. the transaction exists, is confirmed, and did not fail
+2. the wallet bound to the Float account signed it
+3. the program emitted `AdvanceRepaid` inside it
+4. the event's `business` account matches the PDA derived from that wallet
+5. the amount repaid on chain equals what the application owes
+
+Check 4 stops a borrower presenting someone else's repayment; check 5 stops them presenting a smaller repayment of their own. The event is decoded straight from the `Program data:` log using the layout in the program's IDL (discriminator `b9bf885ae05f01c5`). A verified signature is written to `settlements`, whose primary key is the signature, so one transaction can never settle two advances.
+
+**The wallet is never taken from the browser.** It is read from `privy_identities`, the record of the identity Privy verified, and bound to the application when it is created. An application created before a wallet was linked falls back to the identity's wallet at settlement time and keeps it.
+
+Verification is injected as `getTransaction`, so tests drive it with crafted transactions and a paid RPC can replace the public devnet endpoint later through `FLOAT_RPC`.
+
+**What is still missing:** nothing yet creates the advance on chain, so a borrower has no signature to submit. `request_advance` and `repay_advance` are signed by the borrower's wallet and `approve_and_disburse` by the underwriter; wiring those is the next step. Until then this path is proven by tests, not by a real devnet repayment.
+
 ## Verification
 
 ```sh
@@ -82,7 +102,7 @@ npm test
 npm run build
 ```
 
-API tests cover private document access, borrower/operator permissions, persistent storage, invalid requests, duplicate invoices, acceptance before funding, information requests, rejection/decline, and duplicate state transitions.
+API tests cover reconciliation (verified settlement, replayed signatures, wrong amounts, unsigned and missing transactions, client-supplied wallets), private document access, borrower/operator permissions, persistent storage, invalid requests, duplicate invoices, acceptance before funding, information requests, rejection/decline, and duplicate state transitions.
 
 ## Deployment configuration
 

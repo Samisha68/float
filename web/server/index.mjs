@@ -8,6 +8,7 @@ import { openStore, passwordHash, passwordMatches } from "./store.mjs";
 import { redeemInvite } from "./invites.mjs";
 import { verifyPrivyIdentity } from "./privy.mjs";
 import { marginRequired, quote, repaymentsFor, suggestedFeeBps } from "./pricing.mjs";
+import { isValidSignature, transactionReader, verifyRepayment } from "./chain.mjs";
 
 const DAY = 86400000;
 const fail = (status, message) => {
@@ -38,6 +39,7 @@ const publicUser = ({ id, email, name, role }) => ({ id, email, name, role });
 export function createApp({
   db = openStore(),
   verifyIdentity = verifyPrivyIdentity,
+  getTransaction = transactionReader(),
   allowLegacyAuth = false,
   origin = process.env.FLOAT_ORIGIN || "http://localhost:5173",
   secure = process.env.NODE_ENV === "production",
@@ -286,10 +288,16 @@ export function createApp({
         if (user.role !== "borrower")
           fail(403, "Only businesses can submit applications.");
         if (!user.name.trim()) fail(400, "Add your business name before applying.");
+        /* The wallet comes from the identity Privy verified, never from the
+           browser: a client-supplied address is not proof of anything. */
+        const bound = db
+          .prepare("SELECT wallet FROM privy_identities WHERE user_id=?")
+          .get(user.id);
         const a = {
           id: randomUUID(),
           userId: user.id,
           businessName: user.name,
+          wallet: bound?.wallet ?? null,
           payer: text(body.payer, "Customer"),
           invoiceNumber: text(body.invoiceNumber, "Invoice reference", 100),
           amount: money(body.amount, "Advance", 5000),
@@ -470,6 +478,58 @@ export function createApp({
             "Simulated disbursement recorded. No money moved.",
           );
         } else if (action === "repay") {
+          /* With a signature this is reconciliation: the chain decides. Without
+             one it stays a simulated entry in the pilot workspace. */
+          if (body.signature !== undefined) {
+            if (!isValidSignature(body.signature))
+              fail(400, "That does not look like a Solana transaction signature.");
+            /* Applications created before this account linked a wallet have
+               none stored. Fall back to the wallet Privy has verified for this
+               identity now, and keep it, so an older advance can still settle. */
+            if (!a.wallet)
+              a.wallet =
+                db.prepare("SELECT wallet FROM privy_identities WHERE user_id=?").get(a.userId)?.wallet ?? null;
+            if (!a.wallet)
+              fail(400, "Link a Solana wallet to this account before settling an advance on chain.");
+            if (db.prepare("SELECT application_id FROM settlements WHERE signature=?").get(body.signature))
+              fail(409, "That transaction has already been used to settle an advance.");
+            const proof = verifyRepayment({
+              transaction: await getTransaction(body.signature),
+              wallet: a.wallet,
+              totalDue: a.totalDue,
+            });
+            a.status = "Repaid";
+            a.repaidAt = Date.now();
+            a.settlement = "onchain";
+            a.chain = {
+              signature: body.signature,
+              advance: proof.advance,
+              slot: proof.slot,
+              wasLate: proof.wasLate,
+            };
+            record(
+              a,
+              "Business",
+              `Repayment of ${proof.totalDue} USDC confirmed on Solana in transaction ${body.signature}.`,
+            );
+            db.exec("BEGIN");
+            try {
+              db.prepare("INSERT INTO settlements VALUES(?,?,?,?,?,?)").run(
+                body.signature,
+                a.id,
+                "repayment",
+                proof.advance,
+                proof.slot,
+                Date.now(),
+              );
+              save(a);
+              db.exec("COMMIT");
+            } catch (error) {
+              db.exec("ROLLBACK");
+              throw error;
+            }
+            return send(200, a);
+          }
           a.status = "Repaid";
           a.repaidAt = Date.now();
           record(
